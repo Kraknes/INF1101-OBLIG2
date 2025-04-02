@@ -17,17 +17,25 @@
 #include "list.h"
 #include "map.h"
 #include "set.h"
+#
 
-
+    // ERLIGN IMPLEMENTASJON NEDENFOR
 struct index {
-    struct map *map;
-    query_result_t *result;
-    
-    /* TODO */
+    // TODO
+    struct map *hashmap;
+    struct index_node *node;
+
+};
+
+typedef struct index_node node;
+struct index_node {
+    int docID;
+    int freq;
+    node *next;
 };
 
 
-
+ // HIT
 /**
  * You may utilize this for lists of query results, or write your own comparison function.
  */
@@ -81,24 +89,51 @@ index_t *index_create() {
      * TODO: Allocate, initialize and set up nescessary structures
      */
 
+
+    // ERLIGN IMPLEMENTASJON NEDENFOR
+
+    index->hashmap = map_create(compare_pointers, hash_string_fnv1a64);
+
+
     return index;
 }
 
 void index_destroy(index_t *index) {
     // during development, you can use the following macro to silence "unused variable" errors.
     UNUSED(index);
-
+    
     /**
      * TODO: Free all memory associated with the index
      */
+    free(index->hashmap);
+    free(index);
 }
 
 int index_document(index_t *index, char *doc_name, list_t *terms) {
+    
     /**
      * TODO: Process document, enabling the terms and subsequent document to be found by index_query
      *
      * Note: doc_name and the list of terms is now owned by the index. See the docstring.
      */
+
+//  HVIS Æ HAR SKJØNT RIKTIG, SÅ FÅR FUNSKJONEN ANVNET PÅ DOUMENTET OG EN LENKET LISTE OVER ALLE ORD I DOKUMENTET. 
+// FINN UT HVORDAN INDEX SKAL BRUKE DEN INFORMASJONEN VIDERE
+
+    // lager iternode av første instans av terms listen
+    list_iter_t *node_iter = list_createiter(terms); 
+    if (!node_iter){
+        pr_error("Failed to allocate memory for node_iter");
+        return;
+    } 
+    //  så lenge det er noe i første noden, så fortsetter den gjennom listen
+    while (list_hasnext(node_iter) != 0)
+    {
+        // inserter item til hashmap, men må kanskje endre struktur for docstring
+        map_insert(index->hashmap, list_next(node_iter), 1);
+    }
+    
+
 
     return 0; // or -x on error
 }
@@ -115,6 +150,8 @@ list_t *index_query(index_t *index, list_t *query_tokens, char *errmsg) {
      * would do with a typical `printf`. `snprintf` does not print anything, rather writing your message to
      * the buffer.
      */
+
+     // TROR FUNKSJONEN FÅR INN EN SORTERT LENKET LISTE OVER INPUT. DENNE SKAL DA PROSESSERE  
 
     return NULL; // TODO: return list of query_result_t objects instead
 }
