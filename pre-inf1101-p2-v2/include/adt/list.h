@@ -11,6 +11,14 @@
 
 #include "defs.h"
 
+// added this in to make index.c work
+typedef struct lnode lnode_t;
+struct lnode {
+    lnode_t *right;
+    lnode_t *left;
+    void *item;
+};
+
 /**
  * Type of list. `list_t` is an alias for `struct list`
  */

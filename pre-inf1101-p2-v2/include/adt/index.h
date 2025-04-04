@@ -25,6 +25,11 @@ typedef struct query_result {
     double score;
 } query_result_t;
 
+typedef struct doc_info {
+    char docID;
+    int freq;
+} doc_i;
+
 /**
  * @brief Create a new index
  * @returns a pointer to the newly allocated index, or NULL on failure
