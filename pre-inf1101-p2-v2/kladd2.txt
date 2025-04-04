@@ -1,0 +1,113 @@
+🧠 What Are You Building?
+You're making a mini Google.
+
+You’ll:
+
+Read and store a bunch of documents.
+
+Allow a user to search with complex logic like:
+
+dog && cat (documents that have both)
+
+dog || cat (documents with either)
+
+dog &! cat (documents with dog but not cat)
+
+Use that search query to find which documents match.
+
+To make that happen, you’ll build two things:
+
+An Inverted Index = a way to quickly find which documents contain a specific word.
+
+A Parser = something that understands a search query and builds a tree from it so you can figure out what to do.
+
+📚 What Is an Inverted Index?
+Let’s say you have 3 documents:
+
+doc1: “the dog barks”
+
+doc2: “the cat meows”
+
+doc3: “the dog and cat are friends”
+
+An inverted index looks like this:
+
+
+"the"  → [doc1, doc2, doc3]
+"dog"  → [doc1, doc3]
+"cat"  → [doc2, doc3]
+"barks" → [doc1]
+This way, if someone searches for dog, you don’t need to search all the text files — just look in the index and return [doc1, doc3].
+
+🧩 What is the Query Parser and AST?
+When the user types a search like:
+
+
+(dog && cat) &! (barks || meows)
+You need to break this down and understand the logic.
+
+You use a recursive descent parser to turn that into a tree (called an AST – Abstract Syntax Tree):
+
+
+         &!
+        /   \
+      &&     ||
+     /  \   /   \
+   dog  cat barks meows
+   
+Then you go:
+
+Get all docs with dog
+
+Get all docs with cat
+
+Get the intersection (docs with both)
+
+Get all docs with barks
+
+Get all docs with meows
+
+Get the union (docs with either)
+
+Subtract 6 from 3 = final result
+
+Boom. You now have your answer.
+
+🔧 Steps to Implement
+Read all files in a folder.
+
+Tokenize each file into words.
+
+Build an inverted index = a map where:
+
+key = word
+
+value = set of documents that contain that word
+
+Parse a search query string into an AST.
+
+Traverse the AST and use the inverted index to get the correct set of documents.
+
+Return those documents to the user.
+
+🛠️ Tips for Success
+Use provided ADTs like map, set, list to build your structures.
+
+When building the parser, follow the grammar exactly:
+
+term, orterm, andterm, query — each one is a function.
+
+For performance testing, use the --limit flag to load fewer files.
+
+For clarity, write diagrams for how the AST is built and executed.
+
+Make your own test cases like dog && cat to see how the tree looks.
+
+❓ Questions You Might Ask
+Want help building the parser functions (term(), orterm() etc.)?
+
+Need help with how to store or design the inverted index?
+
+Want a simple example of how to tokenize files into an index?
+
+Let me know where you want to dive in next — we can even pseudocode or write the C functions together.
