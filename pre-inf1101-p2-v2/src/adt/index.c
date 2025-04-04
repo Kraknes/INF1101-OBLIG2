@@ -17,7 +17,7 @@
 #include "list.h"
 #include "map.h"
 #include "set.h"
-#
+
 
     // ERLIGN IMPLEMENTASJON NEDENFOR
 struct index {
@@ -161,19 +161,19 @@ int index_document(index_t *index, char *doc_name, list_t *terms) {
 
 
             list_t *doc_list = term_entry->val; // Accessing the document list of current term  
-            lnode_t *doc_node = list_contains_doc(doc_list, doc);                                               // Traversing/iterating through the document list. If it exist, change the freq, else, add in.
-            if (!list_contains(doc_list, doc)) { // Checking if the doc is in the list -> = 1 means yes, = 0 means no
+            lnode_t *doc_node = list_contains_doc(doc_list, doc); // Traversing/iterating through the document list. If it exist, change the freq, else, add in.
+           
+            if (!list_contains(doc_list, doc)) { // Checking if the doc is in the list -> = null means not in list, = node means 
                 list_addfirst(doc_list, doc); // adding the new document into the list
                 index->num_docs++;
             }
             else{ // If the document does exist, we have to change the freq of that word
-                
+
+                doc_i *head_doc = doc_node->item; // the returned node has the document of interest
+                head_doc->freq++; // changes the freq of the document
             }
-            e_val->freq++;
             
         }
-        // inserter item til hashmap, men må kanskje endre struktur for docstring
-        
     }
     
 
