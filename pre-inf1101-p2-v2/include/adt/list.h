@@ -11,18 +11,38 @@
 
 #include "defs.h"
 
-// added this in to make index.c work
+typedef struct doc_info doc_i;
+struct doc_info {
+    void *docID;
+    int freq;
+};
+
 typedef struct lnode lnode_t;
 struct lnode {
     lnode_t *right;
     lnode_t *left;
     void *item;
 };
+typedef struct list list_t;
+struct list {
+    lnode_t *leftmost;
+    lnode_t *rightmost;
+    size_t length;
+    cmp_fn cmpfn;
+};
+
+struct list_iter {
+    list_t *list;
+    lnode_t *node;
+};
+
+
+
 
 /**
  * Type of list. `list_t` is an alias for `struct list`
  */
-typedef struct list list_t;
+
 
 /**
  * @brief Create a new, empty list that uses the given comparison function

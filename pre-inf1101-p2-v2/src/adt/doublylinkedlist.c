@@ -15,39 +15,9 @@
 #include "list.h"
 #include "index.h"
 
-typedef struct lnode lnode_t;
-struct lnode {
-    lnode_t *right;
-    lnode_t *left;
-    void *item;
-};
 
-struct list {
-    lnode_t *leftmost;
-    lnode_t *rightmost;
-    size_t length;
-    cmp_fn cmpfn;
-};
 
-struct list_iter {
-    list_t *list;
-    lnode_t *node;
-};
 
-// Made new function to work with new struct
-lnode_t *list_contains_doc(list_t *list, doc_i *doc){
-    struct lnode *node = list->leftmost;
-
-    while (node != NULL) {
-        doc_i *curr_doc = node->item; // First doc in the list
-        if (list->cmpfn(doc->docID, curr_doc->docID) == 0) { // Compares the doc in list to arg doc.
-            return node;
-        }
-        node = node->right;
-    }
-
-    return NULL;
-}
 
 static lnode_t *newnode(void *item) {
     lnode_t *node = malloc(sizeof(lnode_t));

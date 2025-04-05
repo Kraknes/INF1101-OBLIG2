@@ -29,11 +29,8 @@ struct index {
 
 };
 
-typedef struct doc_info doc_i; // bruker entry_t istedenfor, se map.h. 
-struct doc_info {
-    char docID;
-    int freq;
-};
+ // bruker entry_t istedenfor, se map.h. 
+
 
 
  // HIT
@@ -110,6 +107,21 @@ void index_destroy(index_t *index) {
     free(index);
 }
 
+// Made new function to work with new struct
+lnode_t *list_contains_doc(list_t *list, doc_i *doc){
+    lnode_t *node = list->leftmost;
+
+    while (node != NULL) {
+        doc_i *curr_doc = node->item; // First doc in the list
+        if (list->cmpfn(doc->docID, curr_doc->docID) == 0) { // Compares the doc in list to arg doc.
+            return node;
+        }
+        node = node->right;
+    }
+
+    return NULL;
+}
+
 int index_document(index_t *index, char *doc_name, list_t *terms) {
     
     /**
@@ -137,7 +149,11 @@ int index_document(index_t *index, char *doc_name, list_t *terms) {
     // "mnode" are the buckets of a hashmap
 
     doc_i *doc = calloc(1, sizeof(doc));  
-    doc->docID = doc_name;
+    if (!doc){
+        pr_error("Calloc of doc_i error, terminate indexing");
+        return -1;
+    }
+    doc->docID = doc_name; // Adding the doc name 
     doc->freq = 1;
 
     
@@ -145,32 +161,29 @@ int index_document(index_t *index, char *doc_name, list_t *terms) {
     //  så lenge det er noe i første noden, så fortsetter den gjennom listen
     while (terms)
     {   
-        char curr_term = list_popfirst(terms); // get the first term from the list
+        void *curr_term = list_popfirst(terms); // get the first node term from the "terms" list
 
         entry_t *term_entry = map_get(index->hashmap, curr_term); // checking if the word is in the hashmap
 
         // if nothing in the entry, inserting 
         if (term_entry == NULL){
-            list_t *doc_list = list_create(compare_characters); // making list for documents to word
-            list_addfirst(doc_list, doc); // Adding document to doc_list
-            map_insert(index->hashmap, curr_term, doc_list); // adding linked list to word in hashmap
+            list_t *doc_list = list_create((cmp_fn) strcmp); // making a linkedlist for unique docIDs to the specific popped "term"
+            list_addfirst(doc_list, doc); // Adding document info to doc_list
+            map_insert(index->hashmap, curr_term, doc_list); // adding linked list as value to the popped "term" as key to hashmap
             index->num_docs++;
         }
-        else{
-            // The word/term exist, therefore, a linked list is there as well.
-
-
+        else{ // term_entry != NULL: The word/term exist, therefore, a linked list for doc_ids is there as well.
+    
             list_t *doc_list = term_entry->val; // Accessing the document list of current term  
             lnode_t *doc_node = list_contains_doc(doc_list, doc); // Traversing/iterating through the document list. If it exist, change the freq, else, add in.
            
-            if (!list_contains(doc_list, doc)) { // Checking if the doc is in the list -> = null means not in list, = node means 
+            if (doc_node == NULL) { // Checking if the doc is in the list -> = null means not in list, = node means yes
                 list_addfirst(doc_list, doc); // adding the new document into the list
                 index->num_docs++;
             }
-            else{ // If the document does exist, we have to change the freq of that word
-
-                doc_i *head_doc = doc_node->item; // the returned node has the document of interest
-                head_doc->freq++; // changes the freq of the document
+            else{ // If the document does exist, we have to change the freq of that word. 
+                doc_i *term_doc = doc_node->item; // the returned node has the document of interest
+                term_doc->freq++; // changes the freq of the document
             }
             
         }
@@ -180,6 +193,9 @@ int index_document(index_t *index, char *doc_name, list_t *terms) {
 
     return 0; // or -x on error
 }
+
+
+
 
 
 
@@ -198,14 +214,18 @@ list_t *index_query(index_t *index, list_t *query_tokens, char *errmsg) {
      */
 
      // TROR FUNKSJONEN FÅR INN EN SORTERT LENKET LISTE OVER INPUT. DENNE SKAL DA PROSESSERE  
-
-    return NULL; // TODO: return list of query_result_t objects instead
+    UNUSED(index);
+    UNUSED(query_tokens);
+    UNUSED(errmsg);
+    return query_tokens;
+    // return NULL; // TODO: return list of query_result_t objects instead
 }
 
 void index_stat(index_t *index, size_t *n_docs, size_t *n_terms) {
     /**
      * TODO: fix this
      */
+    UNUSED(index);
     *n_docs = 0; // See index->num_docs
     *n_terms = 0; // return map->length
 }
