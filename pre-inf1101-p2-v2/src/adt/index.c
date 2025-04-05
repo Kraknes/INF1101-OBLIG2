@@ -198,7 +198,10 @@ int index_document(index_t *index, char *doc_name, list_t *terms) {
 
 
 
-
+query_result_t *create_query_result(){
+    query_result_t *query_result = calloc(1, sizeof(query_result_t));
+    return query_result;
+}
 
 
 list_t *index_query(index_t *index, list_t *query_tokens, char *errmsg) {
@@ -218,13 +221,18 @@ list_t *index_query(index_t *index, list_t *query_tokens, char *errmsg) {
     // TOKENS ER HVERT ORD DELT OPP, VI SLIPPER Å GJØRE DET SELV. BLIR GJORT AV PRECODE (HELDIGIVIS)
     // SKAL RETURNERE EN LISTE AV QUERY_STRUCTS MED SCORE I DESCENDING ORDER, BRUK FREQ I DOKUMENT FOR DET
 
-    list_iter_t *iter = list_createiter(query_tokens);
-    while (list_hasnext(iter) != 0){
+    set_t *AST = set_create((cmp_fn) strcmp); // Creating AST tree
+
+    list_iter_t *iter = list_createiter(query_tokens); // Create iter for query_token LList
+
+    while (list_hasnext(iter) != 0){ // Will go on until all tokens are processed
+        char *curr_token = list_next(query_tokens); // current token from LList
+        entry_t *token_entry = map_get(index->hashmap, curr_token); // Accesing token entry
+        list_iter_t *t_entry_iter = list_createiter(token_entry->val); //creating iter from token entry LL
 
     }
     
-    UNUSED(index);
-    UNUSED(query_tokens);
+
     UNUSED(errmsg);
     return query_tokens;
     // return NULL; // TODO: return list of query_result_t objects instead
