@@ -28,6 +28,7 @@
 #include "index.h"
 #include "set.h"
 #include "logger.h"
+#include "map.h"
 
 
 /* SETTING: limit the maximum number of results printed for queries. 0=unlimited. */
@@ -178,6 +179,7 @@ static void process_query_results(list_t *results, const char *input, long doubl
     size_t n_printed = 0;
 
     while (list_length(results)) {
+        pr_debug("Test3\n");
         query_result_t *res = list_popfirst(results);
 
         /* verify some properties of the result object */
@@ -281,6 +283,7 @@ static int run_interpreter(index_t *idx, list_t *piped_input) {
                 pr_info("Executed all piped queries\n");
                 return 0;
             }
+            pr_debug("Test4\n");
             char *piped_line = list_popfirst(piped_input);
             memcpy(input, piped_line, strlen(piped_line) + 1); // copy the piped input
             free(piped_line);                                  // free the original
@@ -401,15 +404,16 @@ static index_t *build_index(list_t *fpaths) {
     while (list_length(fpaths)) {
         i++;
         if (PRINT_PROGRESS_INTERVAL && (i % PRINT_PROGRESS_INTERVAL == 0 || i == 1 || i == files_total)) {
-            printf("\rProcessing document # %zu / %zu", i, files_total);
+            printf("\rProcessing document # %zu / %zu\n", i, files_total);
             fflush(stdout);
         }
+
 
         char *path = list_popfirst(fpaths);
         assert(path);
 
-        list_t *terms = read_file_terms(path);
 
+        list_t *terms = read_file_terms(path);
         if (terms == NULL) {
             pr_error("\nFailed to process document.. Ignoring this path and continuing.");
             free(path);
@@ -418,7 +422,19 @@ static index_t *build_index(list_t *fpaths) {
              * Process document with the index.
              * index owns 'path' and 'terms' from this point, regardless of status
              */
-            int status = index_document(idx, path, terms);
+            int status = index_document(idx, path, terms); 
+            
+            // Æ HAR IMPLEMNETERT NEDENFOR FOR Å SJEKKE ORD - SLETT ETTERPÅ
+            printf("Hashmap length is now: %lu (number of different terms)\n", idx->hashmap->length);
+            printf("Unique documents are now: %i\n", idx->num_docs);
+            printf("Checking the word: \"in\" \n");
+            entry_t *x = map_get(idx->hashmap, "in");
+            list_t *y = x->val;
+            printf("Number of documents for \"in\": %ld\n", y->length);
+            lnode_t *z = y->leftmost;
+            doc_i *a = z->item;
+            printf("Name of first doc: %s, number: %i\n", (char*)a->docID, (int)a->freq);
+
 
             if (status != 0) {
                 PANIC("\nindex_document failed!\n");
@@ -430,7 +446,7 @@ static index_t *build_index(list_t *fpaths) {
     if (PRINT_PROGRESS_INTERVAL) {
         printf("\n");
     }
-
+    pr_debug("Done with indexing documents!\n");
     return idx;
 }
 

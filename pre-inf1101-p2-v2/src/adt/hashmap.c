@@ -30,21 +30,6 @@
 #define LF_GROW 0.75
 
 
-typedef struct mnode mnode_t;
-struct mnode {
-    entry_t *entry;
-    mnode_t *overflow; // points to overflow entry if a collision occurs
-};
-
-struct map {
-    cmp_fn cmpfn;
-    hash64_fn hashfn;
-    mnode_t **buckets;
-    size_t capacity;
-    size_t length;
-    size_t rehash_threshold;
-};
-
 /**
  * Calculate the length threshold where the map will rehash on a collision
  */
@@ -197,6 +182,7 @@ entry_t *map_insert(map_t *map, void *key, void *val) {
     /* initialize the new entry */
     entry->key = key;
     entry->val = val;
+
 
     size_t bucket_i = map->hashfn(key) % map->capacity;
     mnode_t *head = map->buckets[bucket_i];

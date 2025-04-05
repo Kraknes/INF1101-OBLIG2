@@ -20,14 +20,7 @@
 
 
     // ERLIGN IMPLEMENTASJON NEDENFOR
-struct index {
-    // TODO
-    struct map *hashmap;
-    struct index_node *node;
-    int num_docs;
-    int num_terms;
 
-};
 
  // bruker entry_t istedenfor, se map.h. 
 
@@ -77,7 +70,7 @@ static void print_list_of_strings(const char *descr, list_t *tokens) {
 }
 
 index_t *index_create() {
-    index_t *index = malloc(sizeof(index_t));
+    index_t *index = calloc(1, sizeof(index_t));
     if (index == NULL) {
         pr_error("Failed to allocate memory for index\n");
         return NULL;
@@ -90,7 +83,7 @@ index_t *index_create() {
 
     // ERLIGN IMPLEMENTASJON NEDENFOR
 
-    index->hashmap = map_create(compare_pointers, hash_string_fnv1a64);
+    index->hashmap = map_create((cmp_fn) strcmp, hash_string_fnv1a64);
 
 
     return index;
@@ -122,6 +115,18 @@ lnode_t *list_contains_doc(list_t *list, doc_i *doc){
     return NULL;
 }
 
+doc_i *create_doc(char *doc_name, int freq){
+    doc_i *doc = calloc(1, sizeof(doc));  
+    if (!doc){
+        pr_error("Calloc of doc_i error, terminate indexing");
+        PANIC("AAAAAAAAH");
+    }
+    doc->docID = doc_name; // Adding the doc name 
+    doc->freq = freq;
+
+    return doc;
+}
+
 int index_document(index_t *index, char *doc_name, list_t *terms) {
     
     /**
@@ -142,35 +147,30 @@ int index_document(index_t *index, char *doc_name, list_t *terms) {
         pr_error("terms or doc_name is null, terminate indexing");
         return -1;
     }
+    index->num_docs++; //one for each document
 
     
     // Struct to put in as "val" in a node in linked-list. 
     // The linked-list is the "val" in a "entry" node inside "mnode"
     // "mnode" are the buckets of a hashmap
 
-    doc_i *doc = calloc(1, sizeof(doc));  
-    if (!doc){
-        pr_error("Calloc of doc_i error, terminate indexing");
-        return -1;
-    }
-    doc->docID = doc_name; // Adding the doc name 
-    doc->freq = 1;
-
-    
     //  MÅ GJØRES OM, MÅ HA EN HASHMAP ELLER LENKET LISTE I VAL FOR ENTRY
     //  så lenge det er noe i første noden, så fortsetter den gjennom listen
-    while (terms)
+    while (terms) // FUNKER IKKE HELT
     {   
-        void *curr_term = list_popfirst(terms); // get the first node term from the "terms" list
+        list_iter_t *list_iter = list_createiter(terms); // A checker to see if there is a next node in the list
+        if (list_hasnext(list_iter) != 0){ // If there is a node with a term
+        void *curr_term = list_popfirst(terms); // get the first node term item from the "terms" list
 
         entry_t *term_entry = map_get(index->hashmap, curr_term); // checking if the word is in the hashmap
+
+        doc_i *doc = create_doc(doc_name, 1); // creating doc struct for insert in term linked list
 
         // if nothing in the entry, inserting 
         if (term_entry == NULL){
             list_t *doc_list = list_create((cmp_fn) strcmp); // making a linkedlist for unique docIDs to the specific popped "term"
             list_addfirst(doc_list, doc); // Adding document info to doc_list
             map_insert(index->hashmap, curr_term, doc_list); // adding linked list as value to the popped "term" as key to hashmap
-            index->num_docs++;
         }
         else{ // term_entry != NULL: The word/term exist, therefore, a linked list for doc_ids is there as well.
     
@@ -179,7 +179,6 @@ int index_document(index_t *index, char *doc_name, list_t *terms) {
            
             if (doc_node == NULL) { // Checking if the doc is in the list -> = null means not in list, = node means yes
                 list_addfirst(doc_list, doc); // adding the new document into the list
-                index->num_docs++;
             }
             else{ // If the document does exist, we have to change the freq of that word. 
                 doc_i *term_doc = doc_node->item; // the returned node has the document of interest
@@ -188,9 +187,11 @@ int index_document(index_t *index, char *doc_name, list_t *terms) {
             
         }
     }
+    else{
+        break; // viktig! ellers går dne i en evig loop
+    }
     
-
-
+    }
     return 0; // or -x on error
 }
 
@@ -201,7 +202,7 @@ int index_document(index_t *index, char *doc_name, list_t *terms) {
 
 
 list_t *index_query(index_t *index, list_t *query_tokens, char *errmsg) {
-    print_list_of_strings("query", query_tokens); // remove this if you like
+    print_list_of_strings("query", query_tokens); // remove this if you like - no thank you :)
 
     /**
      * TODO: perform the search, and return:
@@ -214,6 +215,14 @@ list_t *index_query(index_t *index, list_t *query_tokens, char *errmsg) {
      */
 
      // TROR FUNKSJONEN FÅR INN EN SORTERT LENKET LISTE OVER INPUT. DENNE SKAL DA PROSESSERE  
+    // TOKENS ER HVERT ORD DELT OPP, VI SLIPPER Å GJØRE DET SELV. BLIR GJORT AV PRECODE (HELDIGIVIS)
+    // SKAL RETURNERE EN LISTE AV QUERY_STRUCTS MED SCORE I DESCENDING ORDER, BRUK FREQ I DOKUMENT FOR DET
+
+    list_iter_t *iter = list_createiter(query_tokens);
+    while (list_hasnext(iter) != 0){
+
+    }
+    
     UNUSED(index);
     UNUSED(query_tokens);
     UNUSED(errmsg);
@@ -225,7 +234,7 @@ void index_stat(index_t *index, size_t *n_docs, size_t *n_terms) {
     /**
      * TODO: fix this
      */
-    UNUSED(index);
-    *n_docs = 0; // See index->num_docs
-    *n_terms = 0; // return map->length
+    // UNUSED(index);
+    *n_docs = index->num_docs; // See index->num_docs 
+    *n_terms = index->hashmap->length; // return map->length
 }

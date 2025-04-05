@@ -14,7 +14,15 @@
 /**
  * Type of index. `index_t` is an alias for `struct index_`
  */
-typedef struct index index_t;
+
+typedef struct index {
+    // TODO
+    struct map *hashmap;
+    struct index_node *node;
+    int num_docs;
+    int num_terms;
+
+}index_t;
 
 /**
  * Type of query_result produced by a index query.

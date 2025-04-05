@@ -18,16 +18,32 @@
 /**
  * Type of map. `map_t` is an alias for `struct map`
  */
-typedef struct map map_t;
+
+typedef struct entry {
+    void *key;
+    void *val;
+} entry_t;
+
+typedef struct mnode mnode_t;
+struct mnode {
+    entry_t *entry;
+    mnode_t *overflow; // points to overflow entry if a collision occurs
+};
+
+typedef struct map {
+    cmp_fn cmpfn;
+    hash64_fn hashfn;
+    mnode_t **buckets;
+    size_t capacity;
+    size_t length;
+    size_t rehash_threshold;
+} map_t;
 
 /**
  * This struct is utilized by the map to return key/value pairs from functions. Depending on the context, it
  * may be borrowed from the map (e.g. @`map_get`) or the callers responsibility to free (e.g. @ `map_remove`)
  */
-typedef struct entry {
-    void *key;
-    void *val;
-} entry_t;
+
 
 /**
  * @brief Creates a new, empty map. The map uses the `entr_t` structs to return key/value pairs from
