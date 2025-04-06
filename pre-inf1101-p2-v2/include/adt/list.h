@@ -11,11 +11,7 @@
 
 #include "defs.h"
 
-typedef struct doc_info doc_i;
-struct doc_info {
-    void *docID;
-    int freq;
-};
+
 
 typedef struct lnode lnode_t;
 struct lnode {

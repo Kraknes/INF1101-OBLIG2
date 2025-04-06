@@ -280,6 +280,9 @@ static lnode_t *mergesort_(lnode_t *leftmost, cmp_fn cmpfn) {
     return merge(leftmost, half, cmpfn);
 }
 
+
+
+
 void list_sort(list_t *list) {
     if (list->length < 2) {
         return;
@@ -331,4 +334,77 @@ void *list_next(list_iter_t *iter) {
 
 void list_resetiter(list_iter_t *iter) {
     iter->node = iter->list->leftmost;
+}
+
+
+// ------------------ for list with docs --------------------------//
+
+static lnode_t *mergesort_doc(lnode_t *leftmost, cmp_fn cmpfn) {
+    if (leftmost->right == NULL) {
+        return leftmost;
+    }
+
+    lnode_t *half = splitlist(leftmost);
+    leftmost = mergesort_doc(leftmost, cmpfn);
+    half = mergesort_doc(half, cmpfn);
+
+    return merge_doc(leftmost, half, cmpfn);
+}
+
+
+
+// Merge function for document
+static lnode_t *merge_doc(lnode_t *a, lnode_t *b, cmp_fn cmpfn) {
+    lnode_t *leftmost, *rightmost;
+
+    doc_i *a_doc = a->item;
+    doc_i *b_doc = b->item;
+    /* Pick the smallest leftmost node */
+    if (cmpfn(a_doc->freq, b_doc->freq) < 0) {
+        leftmost = rightmost = a;
+        a = a->right;
+    } else {
+        leftmost = rightmost = b;
+        b = b->right;
+    }
+
+    /* Now repeatedly pick the smallest leftmost node */
+    while (a && b) {
+        if (cmpfn(a_doc->freq, b_doc->freq) < 0) {
+            rightmost->right = a;
+            rightmost = a;
+            a = a->right;
+        } else {
+            rightmost->right = b;
+            rightmost = b;
+            b = b->right;
+        }
+    }
+
+    /* Append the remaining non-empty list (if any) */
+    if (a) {
+        rightmost->right = a;
+    } else {
+        rightmost->right = b;
+    }
+
+    return leftmost;
+}
+
+// For sorting list items with docs
+void list_sort_doc(list_t *list) {
+    if (list->length < 2) {
+        return;
+    }
+
+    /* Recursively sort the list */
+    list->leftmost = mergesort_doc(list->leftmost, list->cmpfn);
+
+    /* Fix the rightmost and left links */
+    lnode_t *left = NULL;
+    for (lnode_t *n = list->leftmost; n != NULL; n = n->right) {
+        n->left = left;
+        left = n;
+    }
+    list->rightmost = left;
 }

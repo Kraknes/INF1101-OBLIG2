@@ -17,16 +17,13 @@
 #include "list.h"
 #include "map.h"
 #include "set.h"
+#include "parser.h"
 
 
-    // ERLIGN IMPLEMENTASJON NEDENFOR
-
-
- // bruker entry_t istedenfor, se map.h. 
+// Own doc_info struct //
 
 
 
- // HIT
 /**
  * You may utilize this for lists of query results, or write your own comparison function.
  */
@@ -221,17 +218,35 @@ list_t *index_query(index_t *index, list_t *query_tokens, char *errmsg) {
     // TOKENS ER HVERT ORD DELT OPP, VI SLIPPER Å GJØRE DET SELV. BLIR GJORT AV PRECODE (HELDIGIVIS)
     // SKAL RETURNERE EN LISTE AV QUERY_STRUCTS MED SCORE I DESCENDING ORDER, BRUK FREQ I DOKUMENT FOR DET
 
-    set_t *AST = set_create((cmp_fn) strcmp); // Creating AST tree
+    // p_tree *AST = p_tree_create((cmp_fn) strcmp); // Creating abstract syntaxt tree
 
-    list_iter_t *iter = list_createiter(query_tokens); // Create iter for query_token LList
+    list_iter_t *q_iter = list_createiter(query_tokens); // Create iter for query_token LList
 
-    while (list_hasnext(iter) != 0){ // Will go on until all tokens are processed
-        char *curr_token = list_next(query_tokens); // current token from LList
+    while (list_hasnext(q_iter) != 0){ // Will go on until all tokens are processed
+        char *curr_token = list_next(q_iter); // current token from LList
+
         entry_t *token_entry = map_get(index->hashmap, curr_token); // Accesing token entry
+        list_sort_doc(token_entry->val);
         list_iter_t *t_entry_iter = list_createiter(token_entry->val); //creating iter from token entry LL
 
+        doc_i *top_doc = calloc(1, sizeof(doc_i));
+        top_doc->freq = 0;
+
+        while (list_hasnext(t_entry_iter) != 0){
+            doc_i *curr_doc = list_next(t_entry_iter);
+            printf("%s\n", curr_doc->docID); // Dette funker bra
+            printf("%d\n", curr_doc->freq);
+
+            if (curr_doc->freq > top_doc->freq){ // Finding the best freq document
+                top_doc->docID = curr_doc->docID;
+                top_doc->freq = curr_doc->freq;
+            }
+            
+        }
+        printf("topdoc name: %s\n", top_doc->docID); 
+        printf("topdoc freq: %d\n", top_doc->freq);
+
     }
-    
 
     UNUSED(errmsg);
     return query_tokens;
