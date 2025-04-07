@@ -216,14 +216,6 @@ list_t *index_query(index_t *index, list_t *query_tokens, char *errmsg) {
         char *curr_token = list_next(q_iter); // current token from LList
         list_addlast(test_list, curr_token);
         printf("Adding token to list\n");
-
-
-
-        // entry_t *token_entry = map_get(index->hashmap, curr_token); // Accesing token entry
-        // set_t *token_set = token_entry->val;
-        // set_iter_t *set_iter = set_createiter(token_set);
-        // printf("%s\n", (char*)set_next(set_iter));
-        
     }
     // Frigjøre query_tokens?
     printf("Done with token querys\n");
@@ -231,23 +223,50 @@ list_t *index_query(index_t *index, list_t *query_tokens, char *errmsg) {
     entry_t *b = map_get(index->hashmap,test_list->rightmost->item);
     set_t *as = a->val;
     printf("done as. set length: %ld\n", set_length(as));
-
     set_t *bs = b->val;
     printf("done bs. set length: %ld\n", set_length(bs));
 
-    set_t *c  = set_union(as,bs);
-    printf("c length is: %lu\n", set_length(c));
 
-    set_iter_t *set_iter = set_createiter(c);
-    query_result_t *query_result = set_next(set_iter); // <-- funker bra
-    printf("%s\n", query_result->doc_name);
-    printf("%f\n", query_result->score);
+    list_iter_t *test_iter = list_createiter(test_list);
+    printf("hey1\n");
+    while (list_hasnext(test_iter) != 0)
+    {
+        printf("hey2\n");
+        char *d = list_next(test_iter);
+        printf("%s\n", (char*)d);
+        if (strcmp(d,"&&") == 0){
+            set_t *c = set_intersection(as,bs);
+            printf("c length is: %lu\n", set_length(c));
+
+            set_iter_t *set_iter = set_createiter(c);
+            query_result_t *query_result = set_next(set_iter); // <-- funker bra
+            printf("%s\n", query_result->doc_name);
+            query_result = set_next(set_iter); // <-- funker bra
+            printf("%s\n", query_result->doc_name);
+        }
+        else if (strcmp(d, "||")==0) {
+            set_t *c = set_union(as,bs);
+            printf("c length is: %lu\n", set_length(c));
+
+            set_iter_t *set_iter = set_createiter(c);
+            query_result_t *query_result = set_next(set_iter); // <-- funker bra
+            printf("%s\n", query_result->doc_name);
+            query_result = set_next(set_iter); // <-- funker bra
+            printf("%s\n", query_result->doc_name);
+        }
+        
+
+            
+            
+        
+            // printf("%s\n", (char*)set_next(set_iter));
+            // printf("%s\n", (char*)set_next(set_iter));
+            // printf("%s\n", (char*)set_next(set_iter));
+            // printf("%s\n", (char*)set_next(set_iter));
+        
+    }
     
 
-    printf("%s\n", (char*)set_next(set_iter));
-    printf("%s\n", (char*)set_next(set_iter));
-    printf("%s\n", (char*)set_next(set_iter));
-    printf("%s\n", (char*)set_next(set_iter));
     
     // p_tree *AST = p_tree_create((cmp_fn) strcmp); // Creating abstract syntaxt tree
     return query_tokens;
