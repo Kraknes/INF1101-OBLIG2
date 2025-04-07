@@ -153,6 +153,7 @@ int index_document(index_t *index, char *doc_name, list_t *terms) {
 
     //  MÅ GJØRES OM, MÅ HA EN HASHMAP ELLER LENKET LISTE I VAL FOR ENTRY
     //  så lenge det er noe i første noden, så fortsetter den gjennom listen
+
     while (terms) // FUNKER IKKE HELT
     {   
         list_iter_t *list_iter = list_createiter(terms); // A checker to see if there is a next node in the list
@@ -165,7 +166,7 @@ int index_document(index_t *index, char *doc_name, list_t *terms) {
 
         // if nothing in the entry, inserting 
         if (term_entry == NULL){
-            list_t *doc_list = list_create((cmp_fn) strcmp); // making a linkedlist for unique docIDs to the specific popped "term"
+        set_t *doc_set = set((cmp_fn) strcmp); // making a linkedlist for unique docIDs to the specific popped "term"
             list_addfirst(doc_list, doc); // Adding document info to doc_list
             map_insert(index->hashmap, curr_term, doc_list); // adding linked list as value to the popped "term" as key to hashmap
         }
