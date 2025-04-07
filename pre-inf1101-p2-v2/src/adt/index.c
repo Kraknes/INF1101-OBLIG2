@@ -97,31 +97,31 @@ void index_destroy(index_t *index) {
     free(index);
 }
 
-// Made new function to work with new struct
-lnode_t *list_contains_doc(list_t *list, doc_i *doc){
-    lnode_t *node = list->leftmost;
+// // Made new function to work with new struct
+// lnode_t *list_contains_doc(list_t *list, doc_i *doc){
+//     lnode_t *node = list->leftmost;
 
-    while (node != NULL) {
-        doc_i *curr_doc = node->item; // First doc in the list
-        if (list->cmpfn(doc->docID, curr_doc->docID) == 0) { // Compares the doc in list to arg doc.
-            return node;
-        }
-        node = node->right;
-    }
+//     while (node != NULL) {
+//         doc_i *curr_doc = node->item; // First doc in the list
+//         if (list->cmpfn(doc->docID, curr_doc->docID) == 0) { // Compares the doc in list to arg doc.
+//             return node;
+//         }
+//         node = node->right;
+//     }
 
-    return NULL;
-}
+//     return NULL;
+// }
 
-doc_i *create_doc(char *doc_name, int freq){
-    doc_i *doc = calloc(1, sizeof(doc));  
-    if (!doc){
+query_result_t *create_query(char *doc_name, int freq){
+    query_result_t *query = calloc(1, sizeof(query_result_t));  
+    if (!query){
         pr_error("Calloc of doc_i error, terminate indexing");
         PANIC("AAAAAAAAH");
     }
-    doc->docID = doc_name; // Adding the doc name 
-    doc->freq = freq;
+    query->doc_name = doc_name; // Adding the doc name 
+    query->score = freq;
 
-    return doc;
+    return query;
 }
 
 int index_document(index_t *index, char *doc_name, list_t *terms) {
@@ -154,52 +154,37 @@ int index_document(index_t *index, char *doc_name, list_t *terms) {
     //  MÅ GJØRES OM, MÅ HA EN HASHMAP ELLER LENKET LISTE I VAL FOR ENTRY
     //  så lenge det er noe i første noden, så fortsetter den gjennom listen
 
-    while (terms) // FUNKER IKKE HELT
-    {   
         list_iter_t *list_iter = list_createiter(terms); // A checker to see if there is a next node in the list
-        if (list_hasnext(list_iter) != 0){ // If there is a node with a term
-        void *curr_term = list_popfirst(terms); // get the first node term item from the "terms" list
-
-        entry_t *term_entry = map_get(index->hashmap, curr_term); // checking if the word is in the hashmap
-
-        doc_i *doc = create_doc(doc_name, 1); // creating doc struct for insert in term linked list
-
-        // if nothing in the entry, inserting 
-        if (term_entry == NULL){
-        set_t *doc_set = set((cmp_fn) strcmp); // making a linkedlist for unique docIDs to the specific popped "term"
-            list_addfirst(doc_list, doc); // Adding document info to doc_list
-            map_insert(index->hashmap, curr_term, doc_list); // adding linked list as value to the popped "term" as key to hashmap
-        }
-        else{ // term_entry != NULL: The word/term exist, therefore, a linked list for doc_ids is there as well.
-    
-            list_t *doc_list = term_entry->val; // Accessing the document list of current term  
-            lnode_t *doc_node = list_contains_doc(doc_list, doc); // Traversing/iterating through the document list. If it exist, change the freq, else, add in.
+        while(list_hasnext(list_iter) != 0){ // If there is a node with a term
+            list_next(list_iter);
            
-            if (doc_node == NULL) { // Checking if the doc is in the list -> = null means not in list, = node means yes
-                list_addfirst(doc_list, doc); // adding the new document into the list
-            }
-            else{ // If the document does exist, we have to change the freq of that word. 
-                doc_i *term_doc = doc_node->item; // the returned node has the document of interest
-                term_doc->freq++; // changes the freq of the document
-            }
+            char *curr_term = list_popfirst(terms); // get the first node term item from the "terms" list
             
+            entry_t *term_entry = map_get(index->hashmap, curr_term); // checking if the word is in the hashmap
+
+            query_result_t *query_term = create_query(doc_name, 1); // making query to insertn in term entry
+
+            // if nothing in the entry, inserting new term to hashmap 
+            if (term_entry == NULL){
+                set_t *term_set = set_create((cmp_fn) strcmp); // making a  set for popped term
+                set_insert(term_set, query_term); // Adding document
+                map_insert(index->hashmap, curr_term, term_set); // adding linked list as value to the popped "term" as key to hashmap
+            }
+            else{ // term_entry != NULL: The word/term exist, therefore, a set for doc_names is there as well.
+                set_t *term_set = term_entry->val; // Accessing the document set of current term  
+                if (set_get_doc(term_set, query_term->doc_name) != NULL){ // If document name is in the set, adds "score" to it for frequency
+                    query_result_t *query = set_get_doc(term_set, query_term->doc_name);
+                    query->score++;
+                }
+                else{
+                    set_insert(term_set, query_term); // if the document exist in term, then do nothing
+                }
+            }
         }
-    }
-    else{
-        break; // viktig! ellers går dne i en evig loop
-    }
-    
-    }
     return 0; // or -x on error
 }
 
 
-
-
-query_result_t *create_query_result(){
-    query_result_t *query_result = calloc(1, sizeof(query_result_t));
-    return query_result;
-}
 
 
 list_t *index_query(index_t *index, list_t *query_tokens, char *errmsg) {
@@ -215,50 +200,68 @@ list_t *index_query(index_t *index, list_t *query_tokens, char *errmsg) {
      * the buffer.
      */
 
+     // return NULL; // TODO: return list of query_result_t objects instead
+
      // TROR FUNKSJONEN FÅR INN EN SORTERT LENKET LISTE OVER INPUT. DENNE SKAL DA PROSESSERE  
     // TOKENS ER HVERT ORD DELT OPP, VI SLIPPER Å GJØRE DET SELV. BLIR GJORT AV PRECODE (HELDIGIVIS)
     // SKAL RETURNERE EN LISTE AV QUERY_STRUCTS MED SCORE I DESCENDING ORDER, BRUK FREQ I DOKUMENT FOR DET
 
-    // p_tree *AST = p_tree_create((cmp_fn) strcmp); // Creating abstract syntaxt tree
-
     list_iter_t *q_iter = list_createiter(query_tokens); // Create iter for query_token LList
 
+    list_t *test_list = list_create((cmp_fn) strcmp);
+
+
     while (list_hasnext(q_iter) != 0){ // Will go on until all tokens are processed
+         // Going to next node;
         char *curr_token = list_next(q_iter); // current token from LList
+        list_addlast(test_list, curr_token);
+        printf("Adding token to list\n");
 
-        entry_t *token_entry = map_get(index->hashmap, curr_token); // Accesing token entry
-        list_sort_doc(token_entry->val);
-        list_iter_t *t_entry_iter = list_createiter(token_entry->val); //creating iter from token entry LL
 
-        doc_i *top_doc = calloc(1, sizeof(doc_i));
-        top_doc->freq = 0;
 
-        while (list_hasnext(t_entry_iter) != 0){
-            doc_i *curr_doc = list_next(t_entry_iter);
-            printf("%s\n", curr_doc->docID); // Dette funker bra
-            printf("%d\n", curr_doc->freq);
-
-            if (curr_doc->freq > top_doc->freq){ // Finding the best freq document
-                top_doc->docID = curr_doc->docID;
-                top_doc->freq = curr_doc->freq;
-            }
-            
-        }
-        printf("topdoc name: %s\n", top_doc->docID); 
-        printf("topdoc freq: %d\n", top_doc->freq);
-
+        // entry_t *token_entry = map_get(index->hashmap, curr_token); // Accesing token entry
+        // set_t *token_set = token_entry->val;
+        // set_iter_t *set_iter = set_createiter(token_set);
+        // printf("%s\n", (char*)set_next(set_iter));
+        
     }
+    // Frigjøre query_tokens?
+    printf("Done with token querys\n");
+    entry_t *a = map_get(index->hashmap,test_list->leftmost->item);
+    entry_t *b = map_get(index->hashmap,test_list->rightmost->item);
+    set_t *as = a->val;
+    printf("done as. set length: %ld\n", set_length(as));
 
-    UNUSED(errmsg);
+    set_t *bs = b->val;
+    printf("done bs. set length: %ld\n", set_length(bs));
+
+    set_t *c  = set_union(as,bs);
+    printf("c length is: %lu\n", set_length(c));
+
+    set_iter_t *set_iter = set_createiter(c);
+    query_result_t *query_result = set_next(set_iter); // <-- funker bra
+    printf("%s\n", query_result->doc_name);
+    printf("%f\n", query_result->score);
+    
+
+    printf("%s\n", (char*)set_next(set_iter));
+    printf("%s\n", (char*)set_next(set_iter));
+    printf("%s\n", (char*)set_next(set_iter));
+    printf("%s\n", (char*)set_next(set_iter));
+    
+    // p_tree *AST = p_tree_create((cmp_fn) strcmp); // Creating abstract syntaxt tree
     return query_tokens;
-    // return NULL; // TODO: return list of query_result_t objects instead
+    UNUSED(index);
+    UNUSED(query_tokens);
+    UNUSED(errmsg);
+    // return query_tokens;
+    
 }
 
 void index_stat(index_t *index, size_t *n_docs, size_t *n_terms) {
     /**
      * TODO: fix this
      */
-    // UNUSED(index);
     *n_docs = index->num_docs; // See index->num_docs 
     *n_terms = index->hashmap->length; // return map->length
 }

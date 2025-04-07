@@ -63,6 +63,22 @@ void *set_insert(set_t *set, void *elem);
  */
 void *set_get(set_t *set, void *elem);
 
+
+/**
+ * @brief Get the document element from the given set. Alternative version of set_get
+ *
+ * @param set: pointer to a set
+ * @param elem: pointer to a document name to search for, using the sets comparison function to check for
+ * equality
+ *
+ * @returns Returns a pointer to the found element if it is contained in the given set, otherwise NULL
+ *
+ * @warning the returned value is borrowed to the caller by the set. Modifying it in a way that affects
+ * comparison function on it may lead to undefined behavior.
+ */
+void *set_get_doc(set_t *set, void *elem);
+
+
 /**
  * @brief Set union operation
  *

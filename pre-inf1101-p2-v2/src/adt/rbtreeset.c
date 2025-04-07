@@ -21,6 +21,12 @@
 #include "list.h"
 #include "set.h"
 
+
+typedef struct query_result {
+    char *doc_name;
+    double score;
+} query_result_t;
+
 typedef enum tnode_color {
     RED = 0,
     BLACK,
@@ -344,6 +350,36 @@ void *set_get(set_t *set, void *elem) {
     tnode_t *node = node_search(set, elem);
 
     return node->elem;
+}
+
+static inline tnode_t *node_search_doc(set_t *set, void *elem) {
+    tnode_t *curr = set->root;
+    query_result_t *query = curr->elem;
+
+    /* traverse until a NIL-node, or return is an equal element is found */
+    while (curr != NIL) {
+        int direction = set->cmpfn(elem, query->doc_name);
+
+        if (direction > 0) {
+            /* a < b    => curr < target   => go right */
+            curr = curr->right;
+        } else if (direction < 0) {
+            /* a > b    => curr > target   => go left */
+            curr = curr->left;
+        } else {
+            /* current node holds the target element */
+            break;
+        }
+    }
+
+    /* NIL if we reached the end, otherwise the target */
+    return curr->elem;
+}
+
+void *set_get_doc(set_t *set, void *elem) {
+    tnode_t *node = node_search_doc(set, elem);
+
+    return node;
 }
 
 /* ---------------------Set operations-------------------- */

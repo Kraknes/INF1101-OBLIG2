@@ -429,11 +429,8 @@ static index_t *build_index(list_t *fpaths) {
             printf("Unique documents are now: %i\n", idx->num_docs);
             printf("Checking the word: \"in\" \n");
             entry_t *x = map_get(idx->hashmap, "in");
-            list_t *y = x->val;
-            printf("Number of documents for \"in\": %ld\n", y->length);
-            lnode_t *z = y->leftmost;
-            doc_i *a = z->item;
-            printf("Name of first doc: %s, number: %i\n", (char*)a->docID, (int)a->freq);
+            set_t *y = x->val;
+            printf("Number of documents for \"in\": %ld\n", set_length(y));
 
 
             if (status != 0) {
