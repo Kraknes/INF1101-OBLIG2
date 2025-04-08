@@ -10,14 +10,7 @@
 
 #include "defs.h"
 #include "list.h"
-
-typedef struct doc_info doc_i;
-struct doc_info {
-    char *docID;
-    int freq;
-};
-
-
+#include <stdbool.h>
 
 
 /**
@@ -100,27 +93,28 @@ void index_stat(index_t *index, size_t *n_docs, size_t *n_terms);
 
 // Har det her foreløpig //
 typedef struct parser_type{
-    char AND;
-    char OR;
-    char ANDNOT;
-    char WORD;
-} t_type;
+    bool AND;
+    bool OR;
+    bool ANDNOT;
+    bool WORD;
+} p_type_t;
 
 
 typedef struct parser_node{
-    t_type token_type;
-    char item;
+    p_type_t *token_type;
+    char *item;
     struct parser_node *left;
     struct parser_node *right;
-} p_node;
+} p_node_t;
 
 // Yoyoy
-typedef struct parser_tree{ // YOYOYOY
-    p_node *root;
-    cmp_fn cmpfn;
-} p_tree;// YHEYH
+typedef struct parser_tree{
+    p_node_t *root;
+} p_tree_t;
 
-p_tree *p_tree_create(cmp_fn cmpfn);
+p_tree_t *tree_create();
+
+p_node_t *pnode_create(char *item);
 
 // Til hit //
 
