@@ -193,7 +193,7 @@ p_tree_t *ptree_create(){ // Make AST parser tree
 p_node_t *pnode_create(char *item){ // Creating node for parser-tree
     p_node_t *p_node = calloc(1, sizeof(p_node_t));
     p_node->token_type = calloc(1, sizeof(p_type_t));
-    p_node->item = NULL;
+    p_node->item = NULL; // Er denne nødvendig?
     if (item != NULL){
         if (strcmp(item, "&&") == 0){
             p_node->token_type->AND = true;
@@ -217,43 +217,7 @@ p_node_t *pnode_create(char *item){ // Creating node for parser-tree
     }
 }
 
-p_node_t *ptree_term(list_iter_t *query_iter){
-    char *curr1 = list_next(query_iter);
-    p_node_t *node_word1 = pnode_create(curr1);
-    char *curr2 = list_next(query_iter);
-    p_node_t *node_operator = pnode_create(curr2);
-    char *curr3 = list_next(query_iter);
-    p_node_t *node_word2 = pnode_create(curr3);
-    node_operator->left = node_word1;
-    node_operator->right = node_word2;
-    return node_operator;
-}
 
-p_node_t *ptree_query(list_iter_t *query_iter){
-    
-    while (list_hasnext(query_iter) != 0){
-        
-        char *curr_token = list_next(query_iter);
-        if (strcmp(curr_token, "(") == 0){ // The start of a term, recurisve the function
-            p_node_t *root_node = ptree_term(query_iter);
-            return root_node;
-        }
-        else{
-            p_node_t *root_node = ptree_term(query_iter);
-            return root_node;
-        }
-    }
-    return NULL;
-}
-
-
-
-void ptree_parsing(p_tree_t *p_tree, list_iter_t *query_iter){
-    p_node_t *root_node = ptree_query(query_iter);
-    p_tree->root = root_node;
-    free(query_iter);
-    }
-    
 
 set_t *ptree_intersection(index_t *index, p_node_t *node){
     entry_t *entry_a = map_get(index->hashmap,node->left->item);
@@ -302,6 +266,91 @@ set_t *ptree_operation(index_t *index, p_node_t *node){
     return NULL;
 }
 
+// p_node_t *ptree_term(list_iter_t *query_iter){
+//     char *curr1 = list_next(query_iter);
+//     p_node_t *node_word1 = pnode_create(curr1);
+//     char *curr2 = list_next(query_iter);
+//     p_node_t *node_operator = pnode_create(curr2);
+//     char *curr3 = list_next(query_iter);
+//     p_node_t *node_word2 = pnode_create(curr3);
+//     node_operator->left = node_word1;
+//     node_operator->right = node_word2;
+//     return node_operator;
+// }
+
+// p_node_t *ptree_term(list_iter_t *query_iter, char *curr_token){
+//     p_node_t *word_node = pnode_create(curr_token);
+//     char *operator_token = list_next(query_iter); // is always an operator since last node in linked list was a word
+//     p_node_t *op_node = pnode_create(operator_token);
+//     op_node->left = word_node;
+// }
+
+
+// p_node_t *ptree_query(list_iter_t *query_iter, p_node_t *prev_node){
+//     while (list_hasnext(query_iter) != 0){
+
+//         char *curr_token = list_next(query_iter);
+
+//         p_node_t *curr_node = pnode_create(curr_token);
+
+//         if (prev_node->token_type->WORD == 1){ // If last node was a word, then curr_node has to be an operator (AND, OR, ANDNOT)
+//             if (curr_node->left == NULL) 
+//             {
+//                 curr_node->left = prev_node;
+//             }
+//             else
+//             {
+//                 curr_node->right = prev_node;
+//             }
+//         }
+//         else{ // If last word was NOT a word, then the current word has to be a word.
+//             prev_node->right = curr_node;
+//         }
+
+//     }
+// }
+
+p_node_t *ptree_term(list_iter_t *query_iter, p_node_t *term1_node){
+    char *curr_token = list_next(query_iter);
+    p_node_t *currterm_node = pnode_create(curr_token);
+    if (currterm_node->token_type->WORD == 0){ // The new term is an operator, therefore, the root.
+        currterm_node->left = term1_node;
+        return currterm_node;
+    }
+    else{
+        term1_node->left = currterm_node;
+        return term1_node;
+    }
+}
+
+p_node_t *parse_query(list_iter_t *query_iter, p_node_t *node){
+    char *curr_token = list_next(query_iter);
+    if (strcmp(curr_token, "(") == 0)
+    {
+        parse_query(query_iter, node); // Continues until a parsable term.
+        return node;
+    }
+    else{
+        p_node_t *term1_node = pnode_create(curr_token);
+        if (term1_node->token_type->WORD == 1){ // if the term is a word
+            p_node_t *term2_node = ptree_term(query_iter, term1_node); // Either word or operator
+            parse_query(query_iter, term2_node);
+        }
+        else{
+
+        }
+    }
+
+    pr_error("failed to create a AST tree\n");
+    return NULL;
+}
+
+
+void ptree_parsing(p_tree_t *p_tree, list_iter_t *query_iter){
+    p_tree->root = parse_query(query_iter, NULL);
+    list_destroyiter(query_iter);
+    }
+
 // ---------------- Parser Tree AST functions STOPS HERE---------------- 
 
 list_t *index_query(index_t *index, list_t *query_tokens, char *errmsg) {
@@ -324,7 +373,6 @@ list_t *index_query(index_t *index, list_t *query_tokens, char *errmsg) {
     // SKAL RETURNERE EN LISTE AV QUERY_STRUCTS MED SCORE I DESCENDING ORDER, BRUK FREQ I DOKUMENT FOR DET
     
     p_tree_t *p_tree = ptree_create();
- 
     
     list_iter_t *new_iter = list_createiter(query_tokens);
  
