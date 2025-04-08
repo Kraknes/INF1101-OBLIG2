@@ -185,7 +185,7 @@ int index_document(index_t *index, char *doc_name, list_t *terms) {
 
 // ---------------- below are Parser Tree AST functions ---------------- 
 
-p_tree_t *tree_create(){ // Make AST parser tree
+p_tree_t *ptree_create(){ // Make AST parser tree
     p_tree_t *p_tree = calloc(1, sizeof(p_tree));
     return p_tree;
 }
@@ -206,8 +206,9 @@ p_node_t *pnode_create(char *item){ // Creating node for parser-tree
         }
         else{ 
             p_node->token_type->WORD = true;
+            
         }
-        p_node->item = item;    
+        p_node->item = item;   
     return p_node;
     }
     else{
@@ -216,20 +217,90 @@ p_node_t *pnode_create(char *item){ // Creating node for parser-tree
     }
 }
 
-void ptree_insert(p_tree_t *p_tree, char *item){
-    p_node_t *node = pnode_create(item);
-    p_tree->root = node;
+p_node_t *ptree_term(list_iter_t *query_iter){
+    char *curr1 = list_next(query_iter);
+    p_node_t *node_word1 = pnode_create(curr1);
+    char *curr2 = list_next(query_iter);
+    p_node_t *node_operator = pnode_create(curr2);
+    char *curr3 = list_next(query_iter);
+    p_node_t *node_word2 = pnode_create(curr3);
+    node_operator->left = node_word1;
+    node_operator->right = node_word2;
+    return node_operator;
 }
 
-// set_t *recursive_parsing(list_iter_t *iter){
-//     UNUSED(iter);
-//     return;
-// }
+p_node_t *ptree_query(list_iter_t *query_iter){
+    
+    while (list_hasnext(query_iter) != 0){
+        
+        char *curr_token = list_next(query_iter);
+        if (strcmp(curr_token, "(") == 0){ // The start of a term, recurisve the function
+            p_node_t *root_node = ptree_term(query_iter);
+            return root_node;
+        }
+        else{
+            p_node_t *root_node = ptree_term(query_iter);
+            return root_node;
+        }
+    }
+    return NULL;
+}
 
 
-// p_tree_t* ptree_parsing(p_tree_t *p_tree, list_iter_t q_iter){
-//     return 0;
-// }
+
+void ptree_parsing(p_tree_t *p_tree, list_iter_t *query_iter){
+    p_node_t *root_node = ptree_query(query_iter);
+    p_tree->root = root_node;
+    free(query_iter);
+    }
+    
+
+set_t *ptree_intersection(index_t *index, p_node_t *node){
+    entry_t *entry_a = map_get(index->hashmap,node->left->item);
+    entry_t *entry_b = map_get(index->hashmap,node->right->item);
+    set_t *set_a = entry_a->val;
+    set_t *set_b = entry_b->val;
+    set_t *result = set_intersection(set_a, set_b);
+    return result;
+}
+
+set_t *ptree_union(index_t *index, p_node_t *node){
+    entry_t *entry_a = map_get(index->hashmap,node->left->item);
+    entry_t *entry_b = map_get(index->hashmap,node->right->item);
+    set_t *set_a = entry_a->val;
+    set_t *set_b = entry_b->val;
+    set_t *result = set_union(set_a, set_b);
+    return result;
+}
+
+set_t *ptree_difference(index_t *index, p_node_t *node){
+    entry_t *entry_a = map_get(index->hashmap, node->left->item);
+    entry_t *entry_b = map_get(index->hashmap, node->right->item);
+    set_t *set_a = entry_a->val;
+    set_t *set_b = entry_b->val;
+    set_t *result = set_difference(set_a, set_b);
+    return result;
+}
+    
+set_t *ptree_operation(index_t *index, p_node_t *node){
+    p_type_t *type = node->token_type;
+    if (type->AND == 1)
+    {
+        set_t *result = ptree_intersection(index, node);
+        return result;
+    }
+    else if (type->ANDNOT == 1)
+    {
+        set_t *result = ptree_difference(index, node);
+        return result;
+    }
+    else if (type->OR == 1)
+    {
+        set_t *result = ptree_union(index, node);
+        return result;
+    }   
+    return NULL;
+}
 
 // ---------------- Parser Tree AST functions STOPS HERE---------------- 
 
@@ -251,80 +322,94 @@ list_t *index_query(index_t *index, list_t *query_tokens, char *errmsg) {
      // TROR FUNKSJONEN FÅR INN EN SORTERT LENKET LISTE OVER INPUT. DENNE SKAL DA PROSESSERE  
     // TOKENS ER HVERT ORD DELT OPP, VI SLIPPER Å GJØRE DET SELV. BLIR GJORT AV PRECODE (HELDIGIVIS)
     // SKAL RETURNERE EN LISTE AV QUERY_STRUCTS MED SCORE I DESCENDING ORDER, BRUK FREQ I DOKUMENT FOR DET
-
-    list_iter_t *q_iter = list_createiter(query_tokens); // Create iter for query_token LList
-
-    list_t *test_list = list_create((cmp_fn) strcmp);
-
-    p_tree_t *p_tree = tree_create();
-
-    ptree_insert(p_tree, "&&");
-    printf("%s\n", p_tree->root->item);
-    printf("%d\n", p_tree->root->token_type->WORD);
-    printf("%d\n", p_tree->root->token_type->AND);
-
-    while (list_hasnext(q_iter) != 0){ // Will go on until all tokens are processed
-         // Going to next node;
-        char *curr_token = list_next(q_iter); // current token from LList
-        if (strcmp(curr_token, "(" ) == 0){
-
-        }
-        list_addlast(test_list, curr_token);
-        printf("Adding token to list\n");
-    }
-
-    // Frigjøre query_tokens?
-
-    // ---------Dette er bare tøv nedover, for å sjekke ut om å set.h funksjonene fungerer.-----------------
     
-    printf("Done with token querys\n");
-    entry_t *a = map_get(index->hashmap,test_list->leftmost->item);
-    entry_t *b = map_get(index->hashmap,test_list->rightmost->item);
-    set_t *as = a->val;
-    printf("done as. set length: %ld\n", set_length(as));
-    set_t *bs = b->val;
-    printf("done bs. set length: %ld\n", set_length(bs));
+    p_tree_t *p_tree = ptree_create();
+ 
+    
+    list_iter_t *new_iter = list_createiter(query_tokens);
+ 
+    ptree_parsing(p_tree, new_iter);
+ 
+    set_t *result = ptree_operation(index, p_tree->root);
 
-
-    list_iter_t *test_iter = list_createiter(test_list); // iter for testliste over tokens
-    while (list_hasnext(test_iter) != 0)
+    printf("c length is: %lu\n", set_length(result));
+    set_iter_t *set_iter = set_createiter(result);
+    while (set_hasnext(set_iter) != 0)
     {
-
-        char *d = list_next(test_iter); // lagrer ord fra test liste, skal sjekkes hva det er
-        printf("%s\n", (char*)d);
-        if (strcmp(d, "&&") == 0){
-            set_t *c = set_intersection(as,bs);
-            printf("c length is: %lu\n", set_length(c));
-            set_iter_t *set_iter = set_createiter(c);
-            while (set_hasnext(set_iter) != 0)
-            {
-                query_result_t *query_result = set_next(set_iter); // <-- funker bra
-                printf("%s\n", query_result->doc_name);
-            }
-        }
-        else if (strcmp(d, "||")==0) {
-            set_t *c = set_union(as,bs);
-            printf("c length is: %lu\n", set_length(c));
-            set_iter_t *set_iter = set_createiter(c);
-            while (set_hasnext(set_iter) != 0)
-            {
-                query_result_t *query_result = set_next(set_iter); // <-- funker bra
-                printf("%s\n", query_result->doc_name);
-            }
-        }
-        else if(strcmp(d, "&!") == 0){
-            set_t *c = set_difference(as,bs);
-            printf("c length is: %lu\n", set_length(c));
-            set_iter_t *set_iter = set_createiter(c);
-            while (set_hasnext(set_iter) != 0)
-            {
-                query_result_t *query_result = set_next(set_iter); // <-- funker bra
-                printf("%s\n", query_result->doc_name);
-            }
-        }
-        // ---------Dette er bare tøv oppover, for å sjekke ut om å set.h funksjonene fungerer.-----------------
-        
+        query_result_t *query_result = set_next(set_iter); // <-- funker bra
+        printf("%s\n", query_result->doc_name);
     }
+    
+    
+        // list_iter_t *q_iter = list_createiter(query_tokens); // Create iter for query_token LList
+    
+        // // list_t *test_list = list_create((cmp_fn) strcmp);
+    
+    // while (list_hasnext(q_iter) != 0){ // Will go on until all tokens are processed
+    //      // Going to next node;
+    //     char *curr_token = list_next(q_iter); // current token from LList
+    //     ptree_parsing(p_tree, q_iter);
+    //     printf("item for node is: %s\n", p_tree->root->item);
+    //     printf("is a word: %d\n", p_tree->root->token_type->WORD);
+    //     printf("is a &&: %d\n", p_tree->root->token_type->AND);
+    //     printf("is a &!: %d\n", p_tree->root->token_type->ANDNOT);
+    //     printf("is a ||: %d\n", p_tree->root->token_type->OR);    
+    //     list_addlast(test_list, curr_token);
+    //     printf("Adding token to list\n");
+    // }
+
+    // // Frigjøre query_tokens?
+
+    // // ---------Dette er bare tøv nedover, for å sjekke ut om å set.h funksjonene fungerer.-----------------
+    
+    // printf("Done with token querys\n");
+    // entry_t *a = map_get(index->hashmap,test_list->leftmost->item);
+    // entry_t *b = map_get(index->hashmap,test_list->rightmost->item);
+    // set_t *as = a->val;
+    // printf("done as. set length: %ld\n", set_length(as));
+    // set_t *bs = b->val;
+    // printf("done bs. set length: %ld\n", set_length(bs));
+
+
+    // list_iter_t *test_iter = list_createiter(test_list); // iter for testliste over tokens
+    // while (list_hasnext(test_iter) != 0)
+    // {
+
+    //     char *d = list_next(test_iter); // lagrer ord fra test liste, skal sjekkes hva det er
+    //     printf("%s\n", (char*)d);
+    //     if (strcmp(d, "&&") == 0){
+    //         set_t *c = set_intersection(as,bs);
+    //         printf("c length is: %lu\n", set_length(c));
+    //         set_iter_t *set_iter = set_createiter(c);
+    //         while (set_hasnext(set_iter) != 0)
+    //         {
+    //             query_result_t *query_result = set_next(set_iter); // <-- funker bra
+    //             printf("%s\n", query_result->doc_name);
+    //         }
+    //     }
+    //     else if (strcmp(d, "||")==0) {
+    //         set_t *c = set_union(as,bs);
+    //         printf("c length is: %lu\n", set_length(c));
+    //         set_iter_t *set_iter = set_createiter(c);
+    //         while (set_hasnext(set_iter) != 0)
+    //         {
+    //             query_result_t *query_result = set_next(set_iter); // <-- funker bra
+    //             printf("%s\n", query_result->doc_name);
+    //         }
+    //     }
+    //     else if(strcmp(d, "&!") == 0){
+    //         set_t *c = set_difference(as,bs);
+    //         printf("c length is: %lu\n", set_length(c));
+    //         set_iter_t *set_iter = set_createiter(c);
+    //         while (set_hasnext(set_iter) != 0)
+    //         {
+    //             query_result_t *query_result = set_next(set_iter); // <-- funker bra
+    //             printf("%s\n", query_result->doc_name);
+    //         }
+    //     }
+    //     // ---------Dette er bare tøv oppover, for å sjekke ut om å set.h funksjonene fungerer.-----------------
+        
+    // }
     
 
     
