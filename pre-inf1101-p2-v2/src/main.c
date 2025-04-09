@@ -179,7 +179,6 @@ static void process_query_results(list_t *results, const char *input, long doubl
     size_t n_printed = 0;
 
     while (list_length(results)) {
-        pr_debug("Test3\n");
         query_result_t *res = list_popfirst(results);
 
         /* verify some properties of the result object */

@@ -193,7 +193,7 @@ p_tree_t *ptree_create(){ // Make AST parser tree
 p_node_t *pnode_create(char *item){ // Creating node for parser-tree
     p_node_t *p_node = calloc(1, sizeof(p_node_t));
     p_node->token_type = calloc(1, sizeof(p_type_t));
-    p_node->item = NULL; // Er denne nødvendig?
+    // p_node->item = NULL; // Er denne nødvendig?
     if (item != NULL){
         if (strcmp(item, "&&") == 0){
             p_node->token_type->AND = true;
@@ -206,7 +206,6 @@ p_node_t *pnode_create(char *item){ // Creating node for parser-tree
         }
         else{ 
             p_node->token_type->WORD = true;
-            
         }
         p_node->item = item;   
     return p_node;
@@ -219,6 +218,10 @@ p_node_t *pnode_create(char *item){ // Creating node for parser-tree
 
 set_t *fetch_docs(index_t *index, p_node_t *node){
     entry_t *entry_node = map_get(index->hashmap,node->item);
+    if (entry_node == NULL){
+        pr_error("Word does not exist - Aborts\n");
+        return NULL;
+    }
     set_t *set_a = entry_node->val;
     return set_a;
 }
@@ -270,162 +273,15 @@ set_t *ptree_operation(index_t *index, p_node_t *node){
     return NULL;
 }
 
-// p_node_t *ptree_term(list_iter_t *query_iter){
-//     char *curr1 = list_next(query_iter);
-//     p_node_t *node_word1 = pnode_create(curr1);
-//     char *curr2 = list_next(query_iter);
-//     p_node_t *node_operator = pnode_create(curr2);
-//     char *curr3 = list_next(query_iter);
-//     p_node_t *node_word2 = pnode_create(curr3);
-//     node_operator->left = node_word1;
-//     node_operator->right = node_word2;
-//     return node_operator;
-// }
-
-// p_node_t *ptree_term(list_iter_t *query_iter, char *curr_token){
-//     p_node_t *word_node = pnode_create(curr_token);
-//     char *operator_token = list_next(query_iter); // is always an operator since last node in linked list was a word
-//     p_node_t *op_node = pnode_create(operator_token);
-//     op_node->left = word_node;
-// }
-
-
-// p_node_t *ptree_query(list_iter_t *query_iter, p_node_t *prev_node){
-//     while (list_hasnext(query_iter) != 0){
-
-//         char *curr_token = list_next(query_iter);
-
-//         p_node_t *curr_node = pnode_create(curr_token);
-
-//         if (prev_node->token_type->WORD == 1){ // If last node was a word, then curr_node has to be an operator (AND, OR, ANDNOT)
-//             if (curr_node->left == NULL) 
-//             {
-//                 curr_node->left = prev_node;
-//             }
-//             else
-//             {
-//                 curr_node->right = prev_node;
-//             }
-//         }
-//         else{ // If last word was NOT a word, then the current word has to be a word.
-//             prev_node->right = curr_node;
-//         }
-
-//     }
-// }
-
-
-
-// p_node_t *ptree_term(list_iter_t *query_iter, p_node_t *term1_node, p_node_t *recurs_node){
-//     char *curr_token = list_next(query_iter);
-//     if (strcmp(curr_token, ")") != 0){ // Not a bracket. Must be a term (word or operator)
-//         p_node_t *term2_node = pnode_create(curr_token);
-//         if (term2_node->token_type->WORD == 0){ // Not a word, must be a operator
-//             term2_node->left = term1_node; // Set the word to the operator
-//             if (recurs_node != NULL){ // if term2 and term1 is a branch of tree ()
-//                 if (recurs_node->left != NULL) // if left side is occupied
-//                 {
-//                     recurs_node->right = term2_node;
-//                     return recurs_node;
-//                 }
-//                 else{
-//                     recurs_node->left = term2_node;
-//                     return recurs_node;
-//                 }
-
-//             }
-//             else{
-//                 return term2_node;
-//             }
-//         }
-//     }
-//     else if (strcmp(curr_token, ")") == 0){ //Ignores term2, means term1 is term of interest 
-//         if (recurs_node->right != NULL)
-//         {
-//             p_node_t *a = recurs_node->right;
-//             while (a->right != NULL)
-//             {
-//                 a = a->right;
-//             }
-//             a->right = term1_node;
-//             return a;
-//         }
-         
-//         recurs_node->right = term1_node; // DENNE ERSTATTER TIDLIGERE NODER, FIKS
-        
-//         return recurs_node;
-//     }
-//     pr_error("Failed to make tree\n");
-//     return NULL;
-// }
-
-// p_node_t *parse_query(list_iter_t *query_iter, p_node_t *recurs_node){
-//     char *curr_token = list_next(query_iter);
-//     if (curr_token == NULL){ // if end of string
-//         return recurs_node;
-//     }
-//     if (strcmp(curr_token, "(") == 0)
-//     {
-//         recurs_node = parse_query(query_iter, recurs_node); // Continues until a parsable term.
-//         return recurs_node;
-//     }
-//     else if (strcmp(curr_token, ")") == 0)
-//     {
-//         return recurs_node;
-//     }
-    
-//     else{
-//         p_node_t *term1_node = pnode_create(curr_token);
-//         if (term1_node->token_type->WORD == 1){ // if the term is a word
-//             p_node_t *return_node = ptree_term(query_iter, term1_node, recurs_node); // Either word or operator
-//             return_node = parse_query(query_iter, return_node); // ")" skjer så returneres bare den høyre side-treet, ikke hele tree strukturen, må fikses
-//             return recurs_node;
-//         }
-//         else{
-//             pr_error("hwt happens here?");
-//         }
-//     }
-
-//     pr_error("failed to create a AST tree\n");
-//     return NULL;
-// }
-
-// p_node_t *parse_term(list_iter_t *query_iter){
-
-// }
-
-
-// ---- Denne funker bra for (A && (blablabla)), men dårlig for ((A & B) & blalba)
-
-// p_node_t *parse_query(list_iter_t *query_iter){
-//     char *curr_token = list_next(query_iter);
-//     if (curr_token == NULL){ // if end of string
-//         return NULL;
-//     }
-//     if (strcmp(curr_token, "(") == 0)
-//     { 
-//         // vet da at neste er et ord, og en operator - NEI, KAN VÆRE ((A & B) & C)
-//         char *left_token = list_next(query_iter); // term/word node
-//         p_node_t *left_node = pnode_create(left_token);
-//         char *root_token = list_next(query_iter); // operator node
-//         p_node_t *root_node = pnode_create(root_token);
-//         root_node->left = left_node;
-//         root_node->right = parse_query(query_iter);
-//         return root_node;
-//     }
-//     else{
-//         p_node_t *term_node = pnode_create(curr_token); // Must be a term/word
-//         list_next(query_iter);  // get rid of ")"
-//         return term_node;
-//     }
-// }
-
 
 p_node_t *parse_query(list_iter_t *query_iter){
     char *curr_token = list_next(query_iter); // gets the next wor
     if (curr_token == NULL){ // if end of string
         pr_error("String does not exist - Aborts \n");
         return NULL;
+    }
+    if (query_iter->list->length == 1){
+        return pnode_create(curr_token); // if sample has only one word without "()"
     }
     if (strcmp(curr_token, "(") == 0) // start of a query
     { 
@@ -446,10 +302,10 @@ p_node_t *parse_query(list_iter_t *query_iter){
             return return_node;
         }
     }
-    else{ // Dette er etter en "(" , altså en query
-        p_node_t *leaf_node = pnode_create(curr_token); //must be a word
-        char *next_token = list_next(query_iter); // operator node
-        if (strcmp(next_token, ")") == 0 || next_token == NULL){ // ferdig med en query
+    else{ // This happens after a "(", meaning a query happens.
+        p_node_t *leaf_node = pnode_create(curr_token); // Is always a leaf_node (unless of a single term search, is then the only node)
+        char *next_token = list_next(query_iter); // Checking next token, either a operator ("&&", "&!", "||") or a ")".
+        if (strcmp(next_token, ")") == 0 || next_token == NULL){ // If ")", end of query, and is returned as a right node
             return leaf_node;
         }
         p_node_t *root_node = pnode_create(next_token);
@@ -482,11 +338,8 @@ list_t *index_query(index_t *index, list_t *query_tokens, char *errmsg) {
      * the buffer.
      */
 
-     // return NULL; // TODO: return list of query_result_t objects instead
+     // TODO: return list of query_result_t objects instead
 
-     // TROR FUNKSJONEN FÅR INN EN SORTERT LENKET LISTE OVER INPUT. DENNE SKAL DA PROSESSERE  
-    // TOKENS ER HVERT ORD DELT OPP, VI SLIPPER Å GJØRE DET SELV. BLIR GJORT AV PRECODE (HELDIGIVIS)
-    // SKAL RETURNERE EN LISTE AV QUERY_STRUCTS MED SCORE I DESCENDING ORDER, BRUK FREQ I DOKUMENT FOR DET
     
     p_tree_t *p_tree = ptree_create();
     
@@ -494,22 +347,29 @@ list_t *index_query(index_t *index, list_t *query_tokens, char *errmsg) {
  
     ptree_parsing(p_tree, new_iter);
  
-    set_t *result = ptree_operation(index, p_tree->root);
 
-    printf("c length is: %lu\n", set_length(result));
+    set_t *result = ptree_operation(index, p_tree->root);
+    if (result == NULL || set_length(result) == 0){
+        errmsg = ("No documents could be fetched by input\n");
+        return NULL;
+    }
+
+    // OPS! Linket liste sletter query tokens etterpå, så må kopiere på nytt til resultat!
+    printf("Number of documents for term is: %lu\n", set_length(result));
     set_iter_t *set_iter = set_createiter(result);
+    list_t *result_list = list_create((cmp_fn) strcmp);
     while (set_hasnext(set_iter) != 0)
     {
         query_result_t *query_result = set_next(set_iter); // <-- funker bra
-        printf("%s\n", query_result->doc_name);
+        printf("Name: %s has score of: %d\n", query_result->doc_name, (int)query_result->score);
+        // list_addfirst(result_list, query_result);
     }
 
     
-    // p_tree *AST = p_tree_create((cmp_fn) strcmp); // Creating abstract syntaxt tree
-    return NULL;
-    UNUSED(index);
-    UNUSED(query_tokens);
+
     UNUSED(errmsg);
+    // p_tree *AST = p_tree_create((cmp_fn) strcmp); // Creating abstract syntaxt tree
+    return result_list;
     // return query_tokens;
     
 }
