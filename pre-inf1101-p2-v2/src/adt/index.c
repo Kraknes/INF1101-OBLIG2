@@ -22,7 +22,7 @@
 
 // Own doc_info struct //
 
-
+set_t *ptree_operation(index_t *index, p_node_t *node);
 
 /**
  * You may utilize this for lists of query results, or write your own comparison function.
@@ -217,52 +217,56 @@ p_node_t *pnode_create(char *item){ // Creating node for parser-tree
     }
 }
 
+set_t *fetch_docs(index_t *index, p_node_t *node){
+    entry_t *entry_node = map_get(index->hashmap,node->item);
+    set_t *set_a = entry_node->val;
+    return set_a;
+}
 
-
-set_t *ptree_intersection(index_t *index, p_node_t *node){
-    entry_t *entry_a = map_get(index->hashmap,node->left->item);
-    entry_t *entry_b = map_get(index->hashmap,node->right->item);
-    set_t *set_a = entry_a->val;
-    set_t *set_b = entry_b->val;
-    set_t *result = set_intersection(set_a, set_b);
+set_t *ptree_intersection(index_t *index, p_node_t *left, p_node_t *right){
+    set_t *set_left = ptree_operation(index, left);
+    set_t *set_right = ptree_operation(index, right);
+    set_t *result = set_intersection(set_left, set_right);
     return result;
 }
 
-set_t *ptree_union(index_t *index, p_node_t *node){
-    entry_t *entry_a = map_get(index->hashmap,node->left->item);
-    entry_t *entry_b = map_get(index->hashmap,node->right->item);
-    set_t *set_a = entry_a->val;
-    set_t *set_b = entry_b->val;
-    set_t *result = set_union(set_a, set_b);
+set_t *ptree_union(index_t *index, p_node_t *left, p_node_t *right){
+    set_t *set_left = ptree_operation(index, left);
+    set_t *set_right = ptree_operation(index, right);
+    set_t *result = set_union(set_left, set_right);
     return result;
 }
 
-set_t *ptree_difference(index_t *index, p_node_t *node){
-    entry_t *entry_a = map_get(index->hashmap, node->left->item);
-    entry_t *entry_b = map_get(index->hashmap, node->right->item);
-    set_t *set_a = entry_a->val;
-    set_t *set_b = entry_b->val;
-    set_t *result = set_difference(set_a, set_b);
+set_t *ptree_difference(index_t *index, p_node_t *left, p_node_t *right){
+    set_t *set_left = ptree_operation(index, left);
+    set_t *set_right = ptree_operation(index, right);
+    set_t *result = set_difference(set_left, set_right);
     return result;
 }
     
 set_t *ptree_operation(index_t *index, p_node_t *node){
     p_type_t *type = node->token_type;
+
+    if (type->WORD == 1){ 
+        set_t *result = fetch_docs(index, node);
+        return result;
+    }
     if (type->AND == 1)
     {
-        set_t *result = ptree_intersection(index, node);
+        set_t *result = ptree_intersection(index, node->left, node->right);
         return result;
     }
     else if (type->ANDNOT == 1)
     {
-        set_t *result = ptree_difference(index, node);
+        set_t *result = ptree_difference(index, node->left, node->right);
         return result;
     }
     else if (type->OR == 1)
     {
-        set_t *result = ptree_union(index, node);
+        set_t *result = ptree_union(index, node->left, node->right);
         return result;
     }   
+    pr_error("Failure on fetching sets\n");
     return NULL;
 }
 
@@ -310,34 +314,75 @@ set_t *ptree_operation(index_t *index, p_node_t *node){
 //     }
 // }
 
-p_node_t *ptree_term(list_iter_t *query_iter, p_node_t *term1_node){
+
+
+p_node_t *ptree_term(list_iter_t *query_iter, p_node_t *term1_node, p_node_t *recurs_node){
     char *curr_token = list_next(query_iter);
-    p_node_t *currterm_node = pnode_create(curr_token);
-    if (currterm_node->token_type->WORD == 0){ // The new term is an operator, therefore, the root.
-        currterm_node->left = term1_node;
-        return currterm_node;
+    if (strcmp(curr_token, ")") != 0){ // Not a bracket. Must be a term (word or operator)
+        p_node_t *term2_node = pnode_create(curr_token);
+        if (term2_node->token_type->WORD == 0){ // Not a word, must be a operator
+            term2_node->left = term1_node; // Set the word to the operator
+            if (recurs_node != NULL){ // if term2 and term1 is a branch of tree ()
+                if (recurs_node->left != NULL) // if left side is occupied
+                {
+                    recurs_node->right = term2_node;
+                    return recurs_node;
+                }
+                else{
+                    recurs_node->left = term2_node;
+                    return recurs_node;
+                }
+
+            }
+            else{
+                return term2_node;
+            }
+        }
     }
-    else{
-        term1_node->left = currterm_node;
-        return term1_node;
+    else if (strcmp(curr_token, ")") == 0){ //Ignores term2, means term1 is term of interest 
+        if (recurs_node->right != NULL)
+        {
+            p_node_t *a = recurs_node->right;
+            while (a->right != NULL)
+            {
+                a = a->right;
+            }
+            a->right = term1_node;
+            return a;
+        }
+         
+        recurs_node->right = term1_node; // DENNE ERSTATTER TIDLIGERE NODER, FIKS
+        
+        return recurs_node;
     }
+    pr_error("Failed to make tree\n");
+    return NULL;
 }
 
-p_node_t *parse_query(list_iter_t *query_iter, p_node_t *node){
+p_node_t *parse_query(list_iter_t *query_iter, p_node_t *recurs_node){
     char *curr_token = list_next(query_iter);
+    if (curr_token == NULL){ // if end of string
+        return recurs_node;
+    }
     if (strcmp(curr_token, "(") == 0)
     {
-        parse_query(query_iter, node); // Continues until a parsable term.
-        return node;
+        recurs_node = parse_query(query_iter, recurs_node); // Continues until a parsable term.
+        return recurs_node;
     }
+    else if (strcmp(curr_token, ")") == 0)
+    {
+        return recurs_node;
+    }
+    
     else{
         p_node_t *term1_node = pnode_create(curr_token);
         if (term1_node->token_type->WORD == 1){ // if the term is a word
-            p_node_t *term2_node = ptree_term(query_iter, term1_node); // Either word or operator
-            parse_query(query_iter, term2_node);
+            p_node_t *return_node = ptree_term(query_iter, term1_node, recurs_node); // Either word or operator
+            recurs_node = parse_query(query_iter, return_node); // ")" skjer så returneres bare den høyre side-treet, ikke hele tree strukturen, må fikses
+            return recurs_node;
         }
         else{
-
+            pr_error("hwt happens here?");
         }
     }
 
