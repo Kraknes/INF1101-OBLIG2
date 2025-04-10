@@ -427,9 +427,6 @@ static index_t *build_index(list_t *fpaths) {
             printf("Hashmap length is now: %lu (number of different terms)\n", idx->hashmap->length);
             printf("Unique documents are now: %i\n", idx->num_docs);
             printf("Checking the word: \"in\" \n");
-            entry_t *x = map_get(idx->hashmap, "in");
-            set_t *y = x->val;
-            printf("Number of documents for \"in\": %ld\n", set_length(y));
 
 
             if (status != 0) {

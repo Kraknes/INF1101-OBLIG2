@@ -471,7 +471,7 @@ static void rec_set_intersection(set_t *c, set_t *b, tnode_t *root_a) {
     rec_set_intersection(c, b, root_a->right);
 
     /* post order recursion here prevents items from being added in the worst-case fashion if sorted */
-    if (set_get(b, root_a->elem)) {
+    if (set_get(b, root_a->elem)) 
         set_insert(c, root_a->elem);
     }
 }
@@ -533,6 +533,7 @@ set_t *set_difference(set_t *a, set_t *b) {
     return c;
 }
 
+/*  */
 
 /* -----------------------Iteration----------------------- */
 

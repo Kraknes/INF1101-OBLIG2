@@ -19,10 +19,26 @@
 #include "set.h"
 #include "parser.h"
 
+typedef struct tnode tnode_t;
+struct tnode {
+    // tnode_color_t color;
+    void *elem;
+    tnode_t *parent;
+    tnode_t *left;
+    tnode_t *right;
+};
+
+struct set {
+    tnode_t *root;
+    cmp_fn cmpfn;
+    size_t length;
+};
+
 
 // Own doc_info struct //
 
-set_t *ptree_operation(index_t *index, p_node_t *node);
+set_t *ptree_operation(index_t *index, p_node_t *node, char* errmsg);
+
 
 /**
  * You may utilize this for lists of query results, or write your own comparison function.
@@ -95,27 +111,17 @@ void index_destroy(index_t *index) {
     free(index->hashmap);
     free(index);
 }
-
-// // Made new function to work with new struct
-// lnode_t *list_contains_doc(list_t *list, doc_i *doc){
-//     lnode_t *node = list->leftmost;
-
-//     while (node != NULL) {
-//         doc_i *curr_doc = node->item; // First doc in the list
-//         if (list->cmpfn(doc->docID, curr_doc->docID) == 0) { // Compares the doc in list to arg doc.
-//             return node;
-//         }
-//         node = node->right;
-//     }
-
-//     return NULL;
-// }
+int cmp_doc_query(void *a, void *b){
+    query_result_t *aq = a;
+    query_result_t *bq = b;
+    return strcmp(aq->doc_name, bq->doc_name);
+}
 
 query_result_t *create_query(char *doc_name, int freq){
     query_result_t *query = calloc(1, sizeof(query_result_t));  
     if (!query){
         pr_error("Calloc of doc_i error, terminate indexing");
-        PANIC("AAAAAAAAH");
+        return NULL;
     }
     query->doc_name = doc_name; // Adding the doc name 
     query->score = freq;
@@ -130,13 +136,6 @@ int index_document(index_t *index, char *doc_name, list_t *terms) {
      *
      * Note: doc_name and the list of terms is now owned by the index. See the docstring.
      */
-
-//  HVIS Æ HAR SKJØNT RIKTIG, SÅ FÅR FUNSKJONEN ANVNET PÅ DOUMENTET OG EN LENKET LISTE OVER ALLE ORD I DOKUMENTET. 
-// FINN UT HVORDAN INDEX SKAL BRUKE DEN INFORMASJONEN VIDERE
-// PLAN: 
-// 1. LAGER ITERATOR AV LISTEN, VIL GÅ GJENNOM LISTEN AV ALLE ORD OG LEGGE TIL I HASHMAP
-// 2. LAGER EGEN STRUCT (WORD_S) FOR WORD INFO = DOC_NR OG FREQ I DOKUMENTET. BLIR LAGT TIL SOM "VALUE" I MNODE I HASHMAP
-// 3. 
 
     // lager iternode av første instans av terms listen
     if (terms == NULL || doc_name == NULL){
@@ -153,33 +152,33 @@ int index_document(index_t *index, char *doc_name, list_t *terms) {
     //  MÅ GJØRES OM, MÅ HA EN HASHMAP ELLER LENKET LISTE I VAL FOR ENTRY
     //  så lenge det er noe i første noden, så fortsetter den gjennom listen
 
-        list_iter_t *list_iter = list_createiter(terms); // A checker to see if there is a next node in the list
-        while(list_hasnext(list_iter) != 0){ // If there is a node with a term
-            list_next(list_iter);
-           
-            char *curr_term = list_popfirst(terms); // get the first node term item from the "terms" list
-            
-            entry_t *term_entry = map_get(index->hashmap, curr_term); // checking if the word is in the hashmap
+    list_iter_t *list_iter = list_createiter(terms); // A checker to see if there is a next node in the list
+    while(list_hasnext(list_iter) != 0){ // If there is a node with a term
+        list_next(list_iter);
+        
+        char *curr_term = list_popfirst(terms); // get the first node term item from the "terms" list
+        
+        entry_t *term_entry = map_get(index->hashmap, curr_term); // checking if the word is in the hashmap
 
-            query_result_t *query_term = create_query(doc_name, 1); // making query to insertn in term entry
+        query_result_t *query_term = create_query(doc_name, 1); // making query to insertn in term entry
 
-            // if nothing in the entry, inserting new term to hashmap 
-            if (term_entry == NULL){
-                set_t *term_set = set_create((cmp_fn) strcmp); // making a  set for popped term
-                set_insert(term_set, query_term); // Adding document
-                map_insert(index->hashmap, curr_term, term_set); // adding linked list as value to the popped "term" as key to hashmap
+        // if nothing in the entry, inserting new term to hashmap 
+        if (term_entry == NULL){
+            set_t *term_set = set_create((cmp_fn) cmp_doc_query); // making a  set for popped term
+            set_insert(term_set, query_term); // Adding document
+            map_insert(index->hashmap, curr_term, term_set); // adding linked list as value to the popped "term" as key to hashmap
+        }
+        else{ // term_entry != NULL: The word/term exist, therefore, a set for doc_names is there as well.
+            set_t *term_set = term_entry->val; // Accessing the document set of current term  
+            if (set_get(term_set, query_term) != NULL){ // If document name is in the set, adds "score" to it for frequency
+                query_result_t *query = set_get(term_set, query_term);
+                query->score++;
             }
-            else{ // term_entry != NULL: The word/term exist, therefore, a set for doc_names is there as well.
-                set_t *term_set = term_entry->val; // Accessing the document set of current term  
-                if (set_get_doc(term_set, query_term->doc_name) != NULL){ // If document name is in the set, adds "score" to it for frequency
-                    query_result_t *query = set_get_doc(term_set, query_term->doc_name);
-                    query->score++;
-                }
-                else{
-                    set_insert(term_set, query_term); // if the document exist in term, then do nothing
-                }
+            else{
+                set_insert(term_set, query_term); // if the document exist in term, then do nothing
             }
         }
+    }
     return 0; // or -x on error
 }
 
@@ -216,60 +215,107 @@ p_node_t *pnode_create(char *item){ // Creating node for parser-tree
     }
 }
 
-set_t *fetch_docs(index_t *index, p_node_t *node){
+/* Fetching docs on the word */
+set_t *fetch_docs(index_t *index, p_node_t *node, char* errmsg){
     entry_t *entry_node = map_get(index->hashmap,node->item);
     if (entry_node == NULL){
-        pr_error("Word does not exist - Aborts\n");
+        errmsg = "Word does not exist - Returning NULL \n";
         return NULL;
     }
-    set_t *set_a = entry_node->val;
-    return set_a;
+    /* Creating new set, so old set in index wont be altered */
+    set_t *set_word = entry_node->val;  
+
+    // Funker ikke så bra, klarer ikke å compare
+    set_iter_t *set_iter = set_createiter(set_word);
+    set_t *new_set = set_create((cmp_fn) cmp_doc_query);
+    while(set_hasnext(set_iter) != 0){
+        query_result_t *doc = set_next(set_iter);
+        char *new_name;
+        new_name = malloc(sizeof(char)*strlen(doc->doc_name)+1);
+        strcpy(new_name, doc->doc_name);
+        // int new_score;
+        // new_score = (int)doc->score;
+        query_result_t *new_doc = create_query(new_name, 0);
+        set_insert(new_set, new_doc);
+    }
+    UNUSED(errmsg);
+    return new_set;
 }
 
-set_t *ptree_intersection(index_t *index, p_node_t *left, p_node_t *right){
-    set_t *set_left = ptree_operation(index, left);
-    set_t *set_right = ptree_operation(index, right);
+
+
+/* Return intersection "&&" on set from left and right node */
+set_t *ptree_intersection(index_t *index, p_node_t *left, p_node_t *right, char* errmsg){
+    set_t *set_left = ptree_operation(index, left, errmsg);
+    set_t *set_right = ptree_operation(index, right, errmsg);
+    if (set_left == NULL || set_right == NULL){
+        errmsg = "Getting set of one word went wrong - Returning NULL \n"; 
+        return NULL;
+    } 
     set_t *result = set_intersection(set_left, set_right);
+    UNUSED(errmsg);
     return result;
 }
 
-set_t *ptree_union(index_t *index, p_node_t *left, p_node_t *right){
-    set_t *set_left = ptree_operation(index, left);
-    set_t *set_right = ptree_operation(index, right);
+/* Return union "||" on set from left and right node 
+* Getting score from each doc in both sets to add as score to next set.
+* Score starts as frequency of each word to document, and set operations adds unto the score. 
+*/
+set_t *ptree_union(index_t *index, p_node_t *left, p_node_t *right, char* errmsg){
+    set_t *set_left = ptree_operation(index, left, errmsg);
+    set_t *set_right = ptree_operation(index, right, errmsg);
+    if (set_left == NULL || set_right == NULL){
+        errmsg = "Getting set of one word went wrong - Returning NULL \n"; 
+        return NULL;
+    } 
     set_t *result = set_union(set_left, set_right);
-    return result;
-}
 
-set_t *ptree_difference(index_t *index, p_node_t *left, p_node_t *right){
-    set_t *set_left = ptree_operation(index, left);
-    set_t *set_right = ptree_operation(index, right);
-    set_t *result = set_difference(set_left, set_right);
+
+
+    UNUSED(errmsg);
     return result;
 }
-    
-set_t *ptree_operation(index_t *index, p_node_t *node){
+/* Return difference "&!" on set from left and right node */
+set_t *ptree_difference(index_t *index, p_node_t *left, p_node_t *right, char* errmsg){
+    set_t *set_left = ptree_operation(index, left, errmsg);
+    set_t *set_right = ptree_operation(index, right, errmsg);
+    if (set_left == NULL || set_right == NULL){
+        errmsg = "Getting set of one word went wrong - Returning NULL \n"; 
+        return NULL;
+    } 
+    set_t *result = set_difference(set_left, set_right);
+    UNUSED(errmsg);
+    return result;
+}
+  
+/* 
+* Recursive set operation on nodes. Checks if node is a word or an operator (&&, &! or ||)
+* Recursively goes through left and right nodes until leaves are met. 
+* Return set operation on left and right nodes
+*/
+set_t *ptree_operation(index_t *index, p_node_t *node, char *errmsg){
     p_type_t *type = node->token_type;
 
     if (type->WORD == 1){ 
-        set_t *result = fetch_docs(index, node);
+        set_t *result = fetch_docs(index, node, errmsg);
         return result;
     }
     if (type->AND == 1)
     {
-        set_t *result = ptree_intersection(index, node->left, node->right);
+        set_t *result = ptree_intersection(index, node->left, node->right, errmsg);
         return result;
     }
     else if (type->ANDNOT == 1)
     {
-        set_t *result = ptree_difference(index, node->left, node->right);
+        set_t *result = ptree_difference(index, node->left, node->right, errmsg);
         return result;
     }
     else if (type->OR == 1)
     {
-        set_t *result = ptree_union(index, node->left, node->right);
+        set_t *result = ptree_union(index, node->left, node->right, errmsg);
         return result;
     }   
-    pr_error("Failure on fetching sets\n");
+    errmsg = "Failure on fetching sets\n";
     return NULL;
 }
 
@@ -318,12 +364,25 @@ p_node_t *parse_query(list_iter_t *query_iter){
     }
 
 
+
+    
 void ptree_parsing(p_tree_t *p_tree, list_iter_t *query_iter){
     p_tree->root = parse_query(query_iter);
     list_destroyiter(query_iter);
     }
 
 // ---------------- Parser Tree AST functions STOPS HERE---------------- 
+
+
+void word_list_parser(list_t *word_list, p_node_t *root){
+    if (root->token_type->WORD == 1){
+        list_addfirst(word_list, root->item);
+    }
+    else{
+        word_list_parser(word_list, root->left);
+        word_list_parser(word_list, root->right);
+    }
+}
 
 list_t *index_query(index_t *index, list_t *query_tokens, char *errmsg) {
     print_list_of_strings("query", query_tokens); // remove this if you like - no thank you :)
@@ -341,31 +400,56 @@ list_t *index_query(index_t *index, list_t *query_tokens, char *errmsg) {
      // TODO: return list of query_result_t objects instead
 
     
-    p_tree_t *p_tree = ptree_create();
+    p_tree_t *p_tree = ptree_create(); // Creating Parsing AST tree
     
-    list_iter_t *new_iter = list_createiter(query_tokens);
+    list_iter_t *new_iter = list_createiter(query_tokens); // Iterator for query_tokens
  
-    ptree_parsing(p_tree, new_iter);
+    ptree_parsing(p_tree, new_iter); // Parses query tokens to AST tree
  
+    list_t *word_list = list_create((cmp_fn) strcmp); // for easy score handling aferwards
+    word_list_parser(word_list, p_tree->root); // Adding words from token query to linked list
 
-    set_t *result = ptree_operation(index, p_tree->root);
+    set_t *result = ptree_operation(index, p_tree->root, errmsg); // Creating result set from Parser AST tree
     if (result == NULL || set_length(result) == 0){
-        errmsg = ("No documents could be fetched by input\n");
+        errmsg = "No documents could be fetched by input\n";
         return NULL;
     }
 
-    // OPS! Linket liste sletter query tokens etterpå, så må kopiere på nytt til resultat!
+     // Kan lage egen funskjon for denne
+    list_iter_t *word_iter = list_createiter(word_list);
+    while (list_hasnext(word_iter) != 0)
+    {
+        char * word = list_next(word_iter);
+        entry_t *entry_word = map_get(index->hashmap, word);
+        set_t *set_word = entry_word->val;
+        set_iter_t *result_iter = set_createiter(result);
+        while (set_hasnext(result_iter) != 0){
+            query_result_t *result_doc = set_next(result_iter);
+            query_result_t *found_doc = set_get(set_word, result_doc);
+            if (found_doc != NULL){
+                result_doc->score += found_doc->score;
+            }
+        }
+        set_destroyiter(result_iter);
+    }
+    list_destroyiter(word_iter);
+    
+
+   
     printf("Number of documents for term is: %lu\n", set_length(result));
     set_iter_t *set_iter = set_createiter(result);
-    list_t *result_list = list_create((cmp_fn) strcmp);
+    list_t *result_list = list_create((cmp_fn) compare_results_by_score);
+
     while (set_hasnext(set_iter) != 0)
     {
         query_result_t *query_result = set_next(set_iter); // <-- funker bra
-        printf("Name: %s has score of: %d\n", query_result->doc_name, (int)query_result->score);
-        // list_addfirst(result_list, query_result);
-    }
 
-    
+        printf("Name: %s has score of: %d\n", query_result->doc_name, (int)query_result->score);
+        list_addfirst(result_list, query_result);
+    }
+    list_sort(result_list);
+
+
 
     UNUSED(errmsg);
     // p_tree *AST = p_tree_create((cmp_fn) strcmp); // Creating abstract syntaxt tree

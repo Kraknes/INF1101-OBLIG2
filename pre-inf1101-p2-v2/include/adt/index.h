@@ -37,7 +37,10 @@ typedef struct query_result {
     double score;
 } query_result_t;
 
-
+typedef struct doc_info {
+    char *doc_name;
+    int score; 
+} doc_i; 
 
 /**
  * @brief Create a new index
