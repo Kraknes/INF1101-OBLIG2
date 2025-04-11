@@ -423,11 +423,10 @@ static index_t *build_index(list_t *fpaths) {
              */
             int status = index_document(idx, path, terms); 
             
-            // Æ HAR IMPLEMNETERT NEDENFOR FOR Å SJEKKE ORD - SLETT ETTERPÅ
-            printf("Hashmap length is now: %lu (number of different terms)\n", idx->hashmap->length);
-            printf("Unique documents are now: %i\n", idx->num_docs);
-            printf("Checking the word: \"in\" \n");
-
+            // --------------- For debugging purposes ------------ //
+            // printf("Hashmap length is now: %lu (number of different terms)\n", idx->hashmap->length);
+            // printf("Unique documents are now: %i\n", idx->num_docs);
+            // --------------- For debugging purposes ------------ //
 
             if (status != 0) {
                 PANIC("\nindex_document failed!\n");

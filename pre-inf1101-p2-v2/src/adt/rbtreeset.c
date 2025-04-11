@@ -474,7 +474,7 @@ static void rec_set_intersection(set_t *c, set_t *b, tnode_t *root_a) {
     if (set_get(b, root_a->elem)) 
         set_insert(c, root_a->elem);
     }
-}
+
 
 set_t *set_intersection(set_t *a, set_t *b) {
     /* if a is b, c == a || b, so simply copy 'a' */
