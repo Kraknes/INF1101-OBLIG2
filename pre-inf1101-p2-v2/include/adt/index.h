@@ -22,9 +22,7 @@
 typedef struct index {
     // TODO
     struct map *hashmap;
-    struct index_node *node;
     int num_docs;
-    int num_terms;
 
 }index_t;
 
@@ -37,10 +35,6 @@ typedef struct query_result {
     double score;
 } query_result_t;
 
-typedef struct doc_info {
-    char *doc_name;
-    int score; 
-} doc_i; 
 
 /**
  * @brief Create a new index
@@ -96,7 +90,13 @@ void index_stat(index_t *index, size_t *n_docs, size_t *n_terms);
 
 
 
-// Har det her foreløpig //
+/** 
+ * Additional structurs for Parser AST tree
+ * parser_type dictate type of term to node
+ * parser_type is a struct in a parser_node 
+ * parser_nodes are part of a tree struct called parser_tree
+ * */ 
+
 typedef struct parser_type{
     bool AND;
     bool OR;
@@ -112,7 +112,7 @@ typedef struct parser_node{
     struct parser_node *right;
 } p_node_t;
 
-// Yoyoy
+
 typedef struct parser_tree{
     p_node_t *root;
 } p_tree_t;
@@ -120,7 +120,5 @@ typedef struct parser_tree{
 p_tree_t *tree_create();
 
 p_node_t *pnode_create(char *item);
-
-// Til hit //
 
 #endif /* INDEX_H */

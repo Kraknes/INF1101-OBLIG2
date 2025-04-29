@@ -65,7 +65,8 @@ void *set_get(set_t *set, void *elem);
 
 
 /**
- * @brief Get the document element from the given set. Alternative version of set_get
+ * @brief Get the document element from the given set. 
+ * Alternative version of set_get to work with another struct version of doc_id
  *
  * @param set: pointer to a set
  * @param elem: pointer to a document name to search for, using the sets comparison function to check for

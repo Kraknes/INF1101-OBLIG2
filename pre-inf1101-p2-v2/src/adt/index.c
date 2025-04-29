@@ -17,7 +17,6 @@
 #include "list.h"
 #include "map.h"
 #include "set.h"
-#include "parser.h"
 
 typedef struct tnode tnode_t;
 struct tnode {
@@ -93,11 +92,6 @@ index_t *index_create() {
 }
 
 void index_destroy(index_t *index) {
-    // during development, you can use the following macro to silence "unused variable" errors.
-
-    /**
-     * TODO: Free all memory associated with the index
-     */
     map_iter_t *map_iter = map_createiter(index->hashmap);
     if (map_hasnext(map_iter) != 0){
 
@@ -110,6 +104,8 @@ void index_destroy(index_t *index) {
     free(index->hashmap);
     free(index);
 }
+
+// 
 
 /* Own compare function for query_structs */
 int cmp_doc_query(void *a, void *b){
@@ -136,7 +132,7 @@ int index_document(index_t *index, char *doc_name, list_t *terms) {
         pr_error("terms or doc_name is null, terminate indexing");
         return -1;
     }
-    index->num_docs++; // Count every document 
+    index->num_docs++; // Counts every document
 
     list_iter_t *list_iter = list_createiter(terms); // A checker to see if there is a next node in the list
     while(list_hasnext(list_iter) != 0){ // If there is a node with a term
@@ -145,22 +141,24 @@ int index_document(index_t *index, char *doc_name, list_t *terms) {
         
         entry_t *term_entry = map_get(index->hashmap, curr_term); // checking if the word is in the hashmap
 
-        query_result_t *query_term = create_query(doc_name, 1); // making query to insertn in term entry
+        query_result_t *query_term = create_query(doc_name, 1); // making query to insert in term entry
 
-        // if nothing in the entry, inserting new term to hashmap 
-        if (term_entry == NULL){
+        if (term_entry == NULL) // if nothing in the entry, inserting new term to hashmap 
+        {
             set_t *term_set = set_create((cmp_fn) cmp_doc_query); // making a  set for popped term
             set_insert(term_set, query_term); // Adding document
             map_insert(index->hashmap, curr_term, term_set); // adding linked list as value to the popped "term" as key to hashmap
         }
-        else{ // term_entry != NULL: The word/term exist, therefore, a set for doc_names is there as well.
+        else // term_entry != NULL: The word/term exist, therefore, a set for doc_names is there as well.
+        { 
             set_t *term_set = term_entry->val; // Accessing the document set of current term  
             if (set_get(term_set, query_term) != NULL){ // If document name is in the set, adds "score" to it for frequency
                 query_result_t *query = set_get(term_set, query_term);
                 query->score++;
+                free(query_term);
             }
             else{
-                set_insert(term_set, query_term); // if the document exist in term, then do nothing
+                set_insert(term_set, query_term); // if the document does not exist in term, add in the document with 1 in score
             }
         }
     }
@@ -169,7 +167,8 @@ int index_document(index_t *index, char *doc_name, list_t *terms) {
     return 0; // or -x on error
 }
 
-// ---------------- below are Parser Tree AST functions ---------------- 
+// ---------------- below are Parser Tree AST functions ---------------- ¨
+
 /*  Creating AST parser tree for list of query terms*/
 p_tree_t *ptree_create(){ 
     p_tree_t *p_tree = calloc(1, sizeof(p_tree));
@@ -212,7 +211,7 @@ set_t *fetch_docs(index_t *index, p_node_t *node, char* errmsg){
     }
     set_t *set_word = entry_node->val;  
 
-     /* Creating a deep-copy set, so old set in index wont be altered/deleted */
+     /* Creating a deep-copy set, so old set in index wont be altered/deleted*/
     set_t *new_set = set_create((cmp_fn) cmp_doc_query);
     set_iter_t *set_iter = set_createiter(set_word);
     if (set_iter == NULL){
@@ -266,10 +265,12 @@ set_t *ptree_union(index_t *index, p_node_t *left, p_node_t *right, char* errmsg
 set_t *ptree_difference(index_t *index, p_node_t *left, p_node_t *right, char* errmsg){
     set_t *set_left = ptree_operation(index, left, errmsg);
     set_t *set_right = ptree_operation(index, right, errmsg);
-    if (set_left == NULL || set_right == NULL){
-        snprintf(errmsg, LINE_MAX, " Getting set word went wrong - Returning NULL \n");
-        return NULL;
+    if (set_left == NULL){
+        return set_right;
     } 
+    if (set_right == NULL){
+        return set_left;
+    }
     set_t *result = set_difference(set_left, set_right);
     UNUSED(errmsg);
     return result;
@@ -285,6 +286,11 @@ set_t *ptree_operation(index_t *index, p_node_t *node, char *errmsg){
 
     if (type->WORD == 1){ 
         set_t *result = fetch_docs(index, node, errmsg);
+        if (result == NULL){
+            printf("%s\n", node->item);
+            snprintf(errmsg, LINE_MAX, "The above word does not exist, try another word. Aborts");
+            return NULL;
+        }
         return result;
     }
     if (type->AND == 1)
@@ -309,14 +315,14 @@ set_t *ptree_operation(index_t *index, p_node_t *node, char *errmsg){
 /* 
 * One sole Recursive query token parser function to AST tree. 
 * Fetches first word of the linked list, and detects if its a start of a query "(". 
-* The functions recursively initiate itself where the returned node is the root of a subtree.
+* The functions recursively initiate itself for each term.
+* The returned node is the root of a subtree.
 * Returns the final root for the whole AST tree by recursively uses the same function for every query
 * 
  */
-
-
 p_node_t *parse_query(list_iter_t *query_iter, char* errmsg){
     char *curr_token = list_next(query_iter); // Fetches the next word from the query list
+
     if (curr_token == NULL){ // If no next word, then the input is not correct. 
         snprintf(errmsg, LINE_MAX, "String does not exist in AST parsing - returning NULL \n");
         return NULL;
@@ -324,31 +330,33 @@ p_node_t *parse_query(list_iter_t *query_iter, char* errmsg){
     if (query_iter->list->length == 1){ // If sample has only one word without "()", for edge cases. 
         return pnode_create(curr_token); 
     }
-    if (strcmp(curr_token, "(") == 0) // Start of a query, e.g --> (A && B)
+
+    if (strcmp(curr_token, "(") == 0) // Start of a query, e.g --> "(A && B)"
     { 
         p_node_t *parent1_node = parse_query(query_iter, errmsg); // Recursively initiate same function parse tokens in query. Next term can be word or a new parantheese. Returns a root node of a subtree 
         char *next_token = list_next(query_iter); // Getting the next token 
         if (next_token == NULL || strcmp(next_token, ")") == 0){ // If null or a ")", end of parsing. The returned node is the root of a subtree, or AST tree. 
             return parent1_node;
         }
-        else if (strcmp(next_token, ")") != 0){  // This checks if there is more after a finished query e.g. after (A && B) --> ((A && B) &! C)
+        else if (strcmp(next_token, ")") != 0){  // This checks if there is more after a finished query ")" symbol e.g.  ((A && B) &! C)
             p_node_t *parent2_node = pnode_create(next_token); // Meaning the first query is the left node, and the newly created node the root node for the subtree/tree. 
             parent2_node->left = parent1_node; 
             parent2_node->right = parse_query(query_iter, errmsg); // Parsing the right node for a new word or a new query
             return parent2_node;
         }
     }
-    else { // This happens after a "(", meaning a query happens. The next word after a "(" is a always a word, e.g --> (A && B)
-        p_node_t *leaf_node = pnode_create(curr_token); // Creating word node (always a word). This happens always after a "(" or an operator ("&&", "&!", "||")
+    else { // This happens after a "(", meaning a query happens. The next word after a "(" is a always a word, e.g --> "(A && B)"
+        p_node_t *leaf_node = pnode_create(curr_token); // Creating word node (always a word). 
         char *next_token = list_next(query_iter); // Getting next token, can either be a operator ("&&", "&!", "||") or a ")".
         if (next_token == NULL || strcmp(next_token, ")") == 0){ // If ")", end of query, and is returned as a right node to a subtree. The subtree is then finished. Next_token == null is for bad inputs e.g: "(a && b" 
             return leaf_node;
         }
         p_node_t *parent_node = pnode_create(next_token); // If not ")", then the next term/word is an operator ("&&", "&!", "||"). 
         parent_node->left = leaf_node; // Operator  becomes the root, and the previous node will be the left node
-        parent_node->right = parse_query(query_iter, errmsg); // Prasing the next word, can either be a word (end of query), or a new query ("(")
+        parent_node->right = parse_query(query_iter, errmsg); // Parsing the next word, can either be a word (end of query), or a new query ("(")
         return parent_node; // Subtree is then returned
         }
+        
     snprintf(errmsg, LINE_MAX, "Something went wrong in making Parser Tree - returning NULL\n");
     return NULL;
     }
@@ -370,15 +378,18 @@ void ptree_parsing(p_tree_t *p_tree, list_iter_t *query_iter, char* errmsg){
 * Linked list iterator to fetch all the words in the AST.
 * Will be used to acquire frequency of word to calculate score
  */
-void word_list_parser(list_t *word_list, p_node_t *root){
+void word_list_parser(list_t *word_list, p_node_t *root, index_t *index){
     if (root->token_type->WORD == 1){
-        list_addfirst(word_list, root->item);
+        if (map_get(index->hashmap, root->item) != NULL){ // In case word does not exist in inverted index, voids segmentation fault
+            list_addfirst(word_list, root->item);
+        }
     }
     else{
-        word_list_parser(word_list, root->left);
-        word_list_parser(word_list, root->right);
+        word_list_parser(word_list, root->left, index);
+        word_list_parser(word_list, root->right, index);
     }
 }
+
 /* 
 * Function to calculate score for each term.ANSI_CLEAR_TERM
 * Fetches word from word_list and gets frequency of each word in the document of interest. 
@@ -415,7 +426,7 @@ int score_calculation(index_t *index,  list_t *word_list, set_t *result, char *e
 }
 
 list_t *index_query(index_t *index, list_t *query_tokens, char *errmsg) {
-    print_list_of_strings("query", query_tokens); // remove this if you like - no thank you :)
+    print_list_of_strings("query", query_tokens); // remove this if you like
 
     p_tree_t *p_tree = ptree_create(); // Creating Parsing AST tree
     
@@ -423,17 +434,15 @@ list_t *index_query(index_t *index, list_t *query_tokens, char *errmsg) {
  
     ptree_parsing(p_tree, new_iter, errmsg); // Parses query tokens to AST tree
  
-    list_t *word_list = list_create((cmp_fn) strcmp); // for easy score handling aferwards
-    word_list_parser(word_list, p_tree->root); // Adding words from token query to linked list
+    list_t *word_list = list_create((cmp_fn) strcmp); // for easy score handling afterwards
+    word_list_parser(word_list, p_tree->root, index); // Adding words from token query to linked list, will be used for calculating score 
 
     set_t *result = ptree_operation(index, p_tree->root, errmsg); // Creating result set from Parser AST tree
     if (result == NULL || set_length(result) == 0){
-        snprintf(errmsg, LINE_MAX, "No documents could be fetched by input\n");
         return NULL;
     }
     
-
-    if (score_calculation(index, word_list, result, errmsg) != 1){
+    if (score_calculation(index, word_list, result, errmsg) != 1){ // Adds score to each document in result set from Parser AST tree
         snprintf(errmsg, LINE_MAX, "Problems in score calculation \n");
         return NULL;
     }
@@ -444,14 +453,14 @@ list_t *index_query(index_t *index, list_t *query_tokens, char *errmsg) {
         return NULL;
     }
     list_t *result_list = list_create((cmp_fn) compare_results_by_score); // Creating list of documents to be returned
-    while (set_hasnext(set_iter) != 0)
+    while (set_hasnext(set_iter) != 0) // Goes through all documents in set, and put in the result_list to be returned
     {
         query_result_t *query_result = set_next(set_iter); 
         list_addfirst(result_list, query_result);
     }
     set_destroyiter(set_iter);
 
-    list_sort(result_list); // Sorts list after score 
+    list_sort(result_list); // Sorts list after score by using compare_results_by_score func. 
 
     UNUSED(errmsg);
     return result_list;
@@ -459,9 +468,6 @@ list_t *index_query(index_t *index, list_t *query_tokens, char *errmsg) {
 }
 
 void index_stat(index_t *index, size_t *n_docs, size_t *n_terms) {
-    /**
-     * TODO: fix this
-     */
     *n_docs = index->num_docs; // See index->num_docs 
     *n_terms = index->hashmap->length; // return map->length
 }
