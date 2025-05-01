@@ -2,8 +2,10 @@
  * @implements parser.h
  */
 
-#include <stddef.h> // for size_t
-#include <stdbool.h>
+ #include <stdlib.h>
+ #include <stdio.h>
+ #include <string.h>
+ #include <limits.h> // for LINE_MAX
 
 #include "parser.h"
 #include "index.h"
