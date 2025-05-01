@@ -1,0 +1,1 @@
+The Semicircle law states that for transport (extended states) of 2D electron gas in a magnetic field, the macroscopic conductivity tensor s satisfies the semicircle law. :\sigma_1 \sigma_2 +(\sigma_h - \sigma^0_h )=(e^2/(2h)^2 with \sigma^0_h = (N + 1/2) e^2 / h ==References== Category:Condensed matter physics 

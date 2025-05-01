@@ -1,0 +1,1 @@
+Guanine nucleotide-binding protein G(i), alpha-2 subunit is a protein that in humans is encoded by the GNAI2 gene. == Interactions == GNAI2 has been shown to interact with: * EYA2, * GPSM2, * Interleukin 8 receptor, alpha, * MDFI, * RGS5, and * RIC8A. == References == == Further reading == * * * * * * * * * * * * * * * * * * 

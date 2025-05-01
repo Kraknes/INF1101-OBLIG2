@@ -1,0 +1,1 @@
+A stereo dipole is a sound source in an Ambiophonic system, made by two closely spaced loudspeakers that ideally span 10-30 degrees. Thanks to the cross-talk cancellation method, a stereo dipole can render an acoustic stereo image nearly 180deg wide (single stereo dipole) or 360deg (dual or double stereo dipole). Category:Stereophonic sound 

@@ -1,0 +1,1 @@
+Guanine nucleotide-binding protein G(i), alpha-1 subunit is a protein that in humans is encoded by the GNAI1 gene. == Interactive pathway map == == Interactions == GNAI1 has been shown to interact with: * GPR143, * RGS12, * RGS14, * RGS19, * RIC8A, and * S1PR1. == References == == Further reading == * * * * * * * * * * * * * * * * * * * 

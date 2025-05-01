@@ -1,0 +1,1 @@
+In computer science, reduction strategy may refer to: * Reduction strategy (code optimization) * Reduction strategy (lambda calculus) 
